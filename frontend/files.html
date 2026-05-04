@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Files</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 30px;
+        }
+
+        .navbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #111827;
+            color: white;
+            padding: 14px 24px;
+            border-radius: 12px;
+            margin-bottom: 25px;
+        }
+
+        .logo {
+            font-size: 20px;
+            font-weight: bold;
+        }
+
+        .nav-links a {
+            color: white;
+            text-decoration: none;
+            margin-left: 20px;
+            font-weight: bold;
+            padding: 6px 10px;
+            border-radius: 6px;
+        }
+
+        .nav-links a:hover {
+            background: #374151;
+        }
+
+        .nav-links a.active {
+            background: #2563eb;
+        }
+
+        ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        li {
+            background: #f3f4f6;
+            padding: 10px;
+            margin-bottom: 10px;
+            border-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        button {
+            cursor: pointer;
+            margin-left: 8px;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.9);
+            justify-content: center;
+            align-items: center;
+        }
+
+        #modalContent {
+            width: 90%;
+            height: 90%;
+        }
+
+        #modalContent iframe,
+        #modalContent img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            border-radius: 10px;
+            background: white;
+        }
+
+        .close {
+            color: white;
+            font-size: 40px;
+            position: absolute;
+            top: 20px;
+            right: 40px;
+            cursor: pointer;
+        }
+
+        .card div {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 10px;
+}
+
+.card button {
+    cursor: pointer;
+}
+    </style>
+</head>
+
+<body>
+   <nav class="navbar">
+    <div class="logo">Homelab Drive</div>
+
+    <div class="nav-links">
+        <a href="/gallery">Photos</a>
+        <a href="/files-page" class="active">Files</a>
+        <a href="/albums">Albums</a>
+    </div>
+</nav>
+
+    <h1>Files</h1>
+
+    <input type="file" id="fileInput">
+    <button onclick="uploadFile()">Upload</button>
+
+    <ul id="fileList"></ul>
+
+    <div id="fileModal" class="modal" onclick="closeFileModal(event)">
+        <span class="close">&times;</span>
+        <div id="modalContent"></div>
+    </div>
+
+    <script>
+        async function loadFiles() {
+            const res = await fetch("/files");
+            const files = await res.json();
+
+            const list = document.getElementById("fileList");
+            list.innerHTML = "";
+
+            files.forEach(f => {
+                const li = document.createElement("li");
+
+                li.innerHTML = `
+                    <span>${f.filename} (${f.size ? (f.size / 1024).toFixed(1) : "0"} KB)</span>
+                    <div>
+                        <button onclick="openFileModal('${f.url}', '${f.filename}')">Preview</button>
+                        <a href="${f.url}" download>
+                            <button>Download</button>
+                        </a>
+                        <button onclick="deleteFile('${encodeURIComponent(f.filename)}')">Delete</button>
+                    </div>
+                `;
+
+                list.appendChild(li);
+            });
+        }
+
+        async function uploadFile() {
+            const input = document.getElementById("fileInput");
+            const file = input.files[0];
+
+            if (!file) {
+                alert("Choose a file first");
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append("file", file);
+
+            await fetch("/files/upload", {
+                method: "POST",
+                body: formData
+            });
+
+            input.value = "";
+            loadFiles();
+        }
+
+        async function deleteFile(name) {
+            await fetch(`/files/${name}`, {
+                method: "DELETE"
+            });
+
+            loadFiles();
+        }
+
+        function openFileModal(url, filename) {
+            const modal = document.getElementById("fileModal");
+            const content = document.getElementById("modalContent");
+
+            const ext = filename.split(".").pop().toLowerCase();
+
+            if (ext === "pdf") {
+                content.innerHTML = `<iframe src="${url}"></iframe>`;
+            } 
+            else if (["jpg", "jpeg", "png", "gif", "webp"].includes(ext)) {
+                content.innerHTML = `<img src="${url}">`;
+            } 
+            else {
+                content.innerHTML = `
+                    <div style="color:white; text-align:center; margin-top:100px;">
+                        <h2>${filename}</h2>
+                        <p>No preview available for this file type.</p>
+                        <a href="${url}" target="_blank" style="color:white;">Open file</a>
+                    </div>
+                `;
+            }
+
+            modal.style.display = "flex";
+        }
+
+        function closeFileModal(e) {
+            if (e.target.id === "fileModal" || e.target.className === "close") {
+                document.getElementById("fileModal").style.display = "none";
+                document.getElementById("modalContent").innerHTML = "";
+            }
+        }
+
+        loadFiles();
+    </script>
+</body>
+</html>

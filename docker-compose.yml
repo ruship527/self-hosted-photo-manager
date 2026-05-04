@@ -1,0 +1,15 @@
+services:
+  photoapp:
+    build: ./backend
+    container_name: photoapp
+    ports:
+      - "8000:8000"
+    dns:
+      - 1.1.1.1
+      - 8.8.8.8
+    volumes:
+      - /DATA/photoapp/uploads:/DATA/photoapp/uploads
+      - /home/rushi/Photoapp/frontend:/frontend
+      - /home/rushi/Photoapp/backend/photos.db:/app/photos.db
+      - /DATA/photoapp/huggingface-cache:/root/.cache/huggingface
+    restart: unless-stopped
