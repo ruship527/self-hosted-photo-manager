@@ -1,6 +1,7 @@
 import os
+import shutil
 
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, UploadFile, File
 from fastapi.responses import FileResponse
 
 from app.routes.auth import authenticate
@@ -13,6 +14,8 @@ router = APIRouter(tags=["Files"])
 def get_files():
     files = []
 
+    os.makedirs(FILE_FOLDER, exist_ok=True)
+
     for filename in os.listdir(FILE_FOLDER):
         path = os.path.join(FILE_FOLDER, filename)
 
@@ -24,6 +27,21 @@ def get_files():
             })
 
     return files
+
+
+@router.post("/files/upload")
+async def upload_file(file: UploadFile = File(...)):
+    os.makedirs(FILE_FOLDER, exist_ok=True)
+
+    file_path = os.path.join(FILE_FOLDER, file.filename)
+
+    with open(file_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+
+    return {
+        "message": "File uploaded successfully",
+        "filename": file.filename
+    }
 
 
 @router.delete("/files/{filename}")

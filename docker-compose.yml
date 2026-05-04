@@ -10,6 +10,6 @@ services:
     volumes:
       - /DATA/photoapp/uploads:/DATA/photoapp/uploads
       - /home/rushi/Photoapp/frontend:/frontend
-      - /home/rushi/Photoapp/backend/photos.db:/app/photos.db
+      - /DATA/photoapp/data:/app/data
       - /DATA/photoapp/huggingface-cache:/root/.cache/huggingface
     restart: unless-stopped
