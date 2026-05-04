@@ -1,3 +1,9 @@
+## Project Status
+
+This project is currently under active development. Core features such as photo uploads, file uploads, previews, downloads, album organization, metadata storage, and AI image tagging have been implemented.
+
+Future updates will focus on improving authentication, UI polish, search/filtering, mobile responsiveness, and deployment reliability.
+
 # Self-Hosted Photo & File Management App
 
 A self-hosted web application for uploading, organizing, previewing, downloading, and managing photos and files.  
