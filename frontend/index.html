@@ -291,7 +291,7 @@
             card.innerHTML = `
                 <input type="checkbox" value="${photo.filename}" class="select-photo">
 
-                <img class="photo-img" src="${API_URL}${photo.url}">
+                <img class="photo-img" src="${API_URL}${photo.thumbnail_url || photo.url}" loading="lazy">
 
                 <p><b>Filename:</b> ${photo.filename}</p>
                 <p><b>Taken:</b> ${photo.taken_date || "Unknown"}</p>

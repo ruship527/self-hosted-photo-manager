@@ -20,6 +20,7 @@ class AlbumUpdate(BaseModel):
 from app.utils import (
     PHOTO_FOLDER,
     FILE_FOLDER,
+    THUMBNAIL_FOLDER,
     MAX_UPLOAD_MB,
     MAX_UPLOAD_BYTES,
     get_file_hash,
@@ -30,6 +31,8 @@ from app.utils import (
     safe_join,
     save_upload,
     is_valid_image,
+    make_thumbnail,
+    logger,
 )
 
 
@@ -85,6 +88,12 @@ async def upload_photo(
 
     os.rename(temp_path, new_path)
 
+    try:
+        make_thumbnail(new_path, os.path.join(THUMBNAIL_FOLDER, new_filename))
+    except Exception:
+        logger.exception("Thumbnail generation failed for %s", new_filename)
+        # not fatal - it'll be generated on first view instead
+
     #AI TAGGING
     tags_str = generate_ai_tags(new_path)
 
@@ -109,6 +118,7 @@ async def upload_photo(
         "taken_date": taken_date,
         "tags": tags_str.split(","),
         "url": f"/uploads/photos/{new_filename}",
+        "thumbnail_url": f"/uploads/thumbnails/{new_filename}",
     }
 
 @router.get("/photos")
@@ -151,6 +161,7 @@ def get_photos(
             "id": p.id,
             "filename": p.saved_filename,
             "url": f"/uploads/photos/{p.saved_filename}",
+            "thumbnail_url": f"/uploads/thumbnails/{p.saved_filename}",
             "taken_date": p.taken_date,
             "upload_date": p.upload_date,
             "tags": p.tags.split(",") if (show_tags and p.tags) else [],
@@ -194,11 +205,16 @@ def delete_photo(filename: str, db: Session = Depends(get_db), user: str = Depen
 
     try:
         file_path = safe_join(PHOTO_FOLDER, filename)
+        thumb_path = safe_join(THUMBNAIL_FOLDER, filename)
     except ValueError:
         file_path = None
+        thumb_path = None
 
     if file_path and os.path.exists(file_path):
         os.remove(file_path)
+
+    if thumb_path and os.path.exists(thumb_path):
+        os.remove(thumb_path)
 
     db.delete(photo)
     db.commit()
@@ -242,6 +258,7 @@ def get_photos_by_album(album: str, db: Session = Depends(get_db), user: str = D
             "id": p.id,
             "filename": p.saved_filename,
             "url": f"/uploads/photos/{p.saved_filename}",
+            "thumbnail_url": f"/uploads/thumbnails/{p.saved_filename}",
             "taken_date": p.taken_date,
             "upload_date": p.upload_date,
             "album": p.album or "Unsorted",

@@ -1,10 +1,13 @@
+import logging
 import os
 import uuid
 import hashlib
 from datetime import datetime
 
-from PIL import Image
+from PIL import Image, ImageOps
 from PIL.ExifTags import TAGS
+
+logger = logging.getLogger("photoapp")
 
 
 def build_filename(original_filename):
@@ -48,10 +51,14 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__fil
 UPLOAD_FOLDER = os.environ.get("UPLOAD_FOLDER", "/DATA/photoapp/uploads")
 PHOTO_FOLDER = os.path.join(UPLOAD_FOLDER, "photos")
 FILE_FOLDER = os.path.join(UPLOAD_FOLDER, "files")
+THUMBNAIL_FOLDER = os.path.join(UPLOAD_FOLDER, "thumbnails")
 
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(PHOTO_FOLDER, exist_ok=True)
 os.makedirs(FILE_FOLDER, exist_ok=True)
+os.makedirs(THUMBNAIL_FOLDER, exist_ok=True)
+
+THUMBNAIL_SIZE = (400, 400)
 
 MAX_UPLOAD_MB = int(os.environ.get("MAX_UPLOAD_MB", "500"))
 MAX_UPLOAD_BYTES = MAX_UPLOAD_MB * 1024 * 1024
@@ -117,6 +124,20 @@ def is_valid_image(path: str) -> bool:
         return False
 
 
+def make_thumbnail(source_path: str, dest_path: str, size=THUMBNAIL_SIZE) -> None:
+    """Generate a resized copy of an image for fast gallery loading.
+    Applies the EXIF orientation tag before resizing so rotated phone
+    photos come out right-side-up, then saves in the source's own format."""
+    with Image.open(source_path) as img:
+        fmt = img.format
+        img = ImageOps.exif_transpose(img)
+        img.thumbnail(size)
+
+        tmp_path = dest_path + ".tmp"
+        img.save(tmp_path, format=fmt)
+        os.replace(tmp_path, dest_path)
+
+
 # The BLIP captioning model is large and slow to load, so it's only
 # imported/loaded the first time AI tagging is actually needed. This keeps
 # app startup fast and lets this module be imported (e.g. in tests) without
@@ -170,6 +191,6 @@ def generate_ai_tags(image_path):
 
         return ", ".join(sorted(tags))
 
-    except Exception as e:
-        print(f"AI tagging failed: {e}")
+    except Exception:
+        logger.exception("AI tagging failed for %s", image_path)
         return ""

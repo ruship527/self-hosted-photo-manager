@@ -140,7 +140,8 @@
     <div class="gallery">
         {% for photo in album_photos %}
         <div class="card">
-            <img src="/uploads/photos/{{ photo.saved_filename }}" onclick="openModal(this.src)">
+            <img src="/uploads/thumbnails/{{ photo.saved_filename }}" loading="lazy"
+                 onclick="openModal('/uploads/photos/{{ photo.saved_filename }}')">
                 <p>{{ photo.saved_filename }}</p>
 
             <form action="/albums/{{ album.id }}/remove/{{ photo.id }}" method="post">
@@ -158,7 +159,8 @@
         {% for photo in photos %}
             {% if photo.id not in album_photo_ids %}
             <div class="card">
-                <img src="/uploads/photos/{{ photo.saved_filename }}" onclick="openModal(this.src)">
+                <img src="/uploads/thumbnails/{{ photo.saved_filename }}" loading="lazy"
+                     onclick="openModal('/uploads/photos/{{ photo.saved_filename }}')">
                 <p>{{ photo.saved_filename }}</p>
 
                 <form action="/albums/{{ album.id }}/add/{{ photo.id }}" method="post">
