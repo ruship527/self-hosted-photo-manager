@@ -1,15 +1,16 @@
 import os
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from app.database import SessionLocal
 from app.models import Photo
+from app.routes.auth import authenticate
 from app.utils import PHOTO_FOLDER, FILE_FOLDER
 
 router = APIRouter(tags=["Stats"])
 
 
 @router.get("/stats")
-def get_stats():
+def get_stats(user: str = Depends(authenticate)):
     db = SessionLocal()
     photos = db.query(Photo).all()
     db.close()
