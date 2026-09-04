@@ -1,12 +1,19 @@
 import os
-import shutil
 import uuid
 
 from fastapi import APIRouter, HTTPException, Depends, UploadFile, File
 from fastapi.responses import FileResponse
 
 from app.routes.auth import authenticate
-from app.utils import BASE_DIR, FILE_FOLDER, sanitize_filename, safe_join
+from app.utils import (
+    BASE_DIR,
+    FILE_FOLDER,
+    MAX_UPLOAD_MB,
+    MAX_UPLOAD_BYTES,
+    sanitize_filename,
+    safe_join,
+    save_upload,
+)
 
 router = APIRouter(tags=["Files"])
 
@@ -47,8 +54,10 @@ async def upload_file(file: UploadFile = File(...), user: str = Depends(authenti
         safe_name = f"{base}_{uuid.uuid4().hex[:8]}{ext}"
         file_path = os.path.join(FILE_FOLDER, safe_name)
 
-    with open(file_path, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
+    try:
+        save_upload(file, file_path, MAX_UPLOAD_BYTES)
+    except ValueError:
+        raise HTTPException(status_code=413, detail=f"File exceeds the {MAX_UPLOAD_MB}MB upload limit")
 
     return {
         "message": "File uploaded successfully",

@@ -23,7 +23,11 @@ SESSION_TTL_SECONDS = 3600
 # browsers silently discard the cookie, breaking login entirely.
 COOKIE_SECURE = os.environ.get("COOKIE_SECURE", "false").lower() == "true"
 
+LOGIN_MAX_ATTEMPTS = int(os.environ.get("LOGIN_MAX_ATTEMPTS", "5"))
+LOGIN_LOCKOUT_SECONDS = int(os.environ.get("LOGIN_LOCKOUT_SECONDS", "300"))
+
 active_sessions: dict[str, dict] = {}
+failed_login_attempts: dict[str, list] = {}
 
 
 def authenticate(request: Request):
@@ -37,6 +41,31 @@ def authenticate(request: Request):
     return session["user"]
 
 
+def _client_key(request: Request) -> str:
+    return request.client.host if request.client else "unknown"
+
+
+def _check_login_rate_limit(key: str):
+    now = time.time()
+    attempts = [t for t in failed_login_attempts.get(key, []) if now - t < LOGIN_LOCKOUT_SECONDS]
+    failed_login_attempts[key] = attempts
+
+    if len(attempts) >= LOGIN_MAX_ATTEMPTS:
+        retry_after = int(LOGIN_LOCKOUT_SECONDS - (now - attempts[0]))
+        raise HTTPException(
+            status_code=429,
+            detail=f"Too many failed login attempts. Try again in {retry_after}s.",
+        )
+
+
+def _record_login_failure(key: str):
+    failed_login_attempts.setdefault(key, []).append(time.time())
+
+
+def _clear_login_failures(key: str):
+    failed_login_attempts.pop(key, None)
+
+
 @router.get("/")
 def home():
     return RedirectResponse(url="/login")
@@ -48,9 +77,15 @@ def login_page():
 
 
 @router.post("/login")
-async def login(username: str = Form(...), password: str = Form(...)):
+async def login(request: Request, username: str = Form(...), password: str = Form(...)):
+    client_key = _client_key(request)
+    _check_login_rate_limit(client_key)
+
     if username != USERNAME or not pwd_context.verify(password, HASHED_PASSWORD):
+        _record_login_failure(client_key)
         raise HTTPException(status_code=401, detail="Invalid username or password")
+
+    _clear_login_failures(client_key)
 
     session_token = secrets.token_urlsafe(32)
     active_sessions[session_token] = {

@@ -5,12 +5,13 @@ from datetime import datetime
 
 from PIL import Image
 from PIL.ExifTags import TAGS
-from transformers import BlipProcessor, BlipForConditionalGeneration
+
 
 def build_filename(original_filename):
     ext = os.path.splitext(original_filename)[1].lower()
     unique_name = str(uuid.uuid4())
     return unique_name + ext
+
 
 def get_photo_taken_date(image_path):
     try:
@@ -31,6 +32,7 @@ def get_photo_taken_date(image_path):
     except Exception:
         return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
+
 def get_file_hash(file_path):
     sha256 = hashlib.sha256()
 
@@ -39,6 +41,7 @@ def get_file_hash(file_path):
             sha256.update(chunk)
 
     return sha256.hexdigest()
+
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -49,6 +52,11 @@ FILE_FOLDER = os.path.join(UPLOAD_FOLDER, "files")
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(PHOTO_FOLDER, exist_ok=True)
 os.makedirs(FILE_FOLDER, exist_ok=True)
+
+MAX_UPLOAD_MB = int(os.environ.get("MAX_UPLOAD_MB", "500"))
+MAX_UPLOAD_BYTES = MAX_UPLOAD_MB * 1024 * 1024
+
+_UPLOAD_CHUNK_SIZE = 1024 * 1024  # 1 MB
 
 
 def sanitize_filename(filename: str) -> str:
@@ -73,18 +81,72 @@ def safe_join(folder: str, filename: str) -> str:
     return candidate
 
 
+def save_upload(file, dest_path: str, max_bytes: int = MAX_UPLOAD_BYTES) -> int:
+    """Stream an UploadFile to disk, aborting (and cleaning up the partial
+    file) if it exceeds max_bytes. Returns the number of bytes written."""
+    written = 0
 
-caption_processor = BlipProcessor.from_pretrained("Salesforce/blip-image-captioning-base")
-caption_model = BlipForConditionalGeneration.from_pretrained("Salesforce/blip-image-captioning-base")
+    try:
+        with open(dest_path, "wb") as buffer:
+            while True:
+                chunk = file.file.read(_UPLOAD_CHUNK_SIZE)
+
+                if not chunk:
+                    break
+
+                written += len(chunk)
+
+                if written > max_bytes:
+                    raise ValueError(f"File exceeds the {max_bytes} byte upload limit")
+
+                buffer.write(chunk)
+    except ValueError:
+        if os.path.exists(dest_path):
+            os.remove(dest_path)
+        raise
+
+    return written
+
+
+def is_valid_image(path: str) -> bool:
+    try:
+        with Image.open(path) as img:
+            img.verify()
+        return True
+    except Exception:
+        return False
+
+
+# The BLIP captioning model is large and slow to load, so it's only
+# imported/loaded the first time AI tagging is actually needed. This keeps
+# app startup fast and lets this module be imported (e.g. in tests) without
+# torch/transformers installed at all.
+_caption_processor = None
+_caption_model = None
+
+
+def _get_captioner():
+    global _caption_processor, _caption_model
+
+    if _caption_processor is None or _caption_model is None:
+        from transformers import BlipProcessor, BlipForConditionalGeneration
+
+        _caption_processor = BlipProcessor.from_pretrained("Salesforce/blip-image-captioning-base")
+        _caption_model = BlipForConditionalGeneration.from_pretrained("Salesforce/blip-image-captioning-base")
+
+    return _caption_processor, _caption_model
+
 
 def generate_ai_tags(image_path):
     try:
+        processor, model = _get_captioner()
+
         image = Image.open(image_path).convert("RGB")
 
-        inputs = caption_processor(image, return_tensors="pt")
-        output = caption_model.generate(**inputs, max_new_tokens=30)
+        inputs = processor(image, return_tensors="pt")
+        output = model.generate(**inputs, max_new_tokens=30)
 
-        caption = caption_processor.decode(output[0], skip_special_tokens=True).lower()
+        caption = processor.decode(output[0], skip_special_tokens=True).lower()
 
         words_to_remove = {
             "a", "an", "the", "and", "or", "of", "in", "on", "with",
