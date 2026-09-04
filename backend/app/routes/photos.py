@@ -1,9 +1,9 @@
-from fastapi import APIRouter, Depends, UploadFile, File, HTTPException, Request
+from fastapi import APIRouter, Depends, UploadFile, File, HTTPException
 from fastapi.responses import StreamingResponse
-from app.database import SessionLocal
+from sqlalchemy.orm import Session
+from app.database import get_db
 from app.models import Photo
 import os
-import shutil
 import zipfile
 import io
 from datetime import datetime
@@ -20,20 +20,26 @@ class AlbumUpdate(BaseModel):
 from app.utils import (
     PHOTO_FOLDER,
     FILE_FOLDER,
+    MAX_UPLOAD_MB,
+    MAX_UPLOAD_BYTES,
     get_file_hash,
     get_photo_taken_date,
     build_filename,
     generate_ai_tags,
     sanitize_filename,
     safe_join,
+    save_upload,
+    is_valid_image,
 )
 
 
 
 @router.post("/photos/upload")
-async def upload_photo(file: UploadFile = File(...), user: str = Depends(authenticate)):
-    db = SessionLocal()
-
+async def upload_photo(
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    user: str = Depends(authenticate),
+):
     if file.content_type and file.content_type.startswith("image/"):
         folder = PHOTO_FOLDER
     else:
@@ -43,25 +49,31 @@ async def upload_photo(file: UploadFile = File(...), user: str = Depends(authent
     temp_filename = f"temp_{uuid.uuid4()}_{safe_name}"
     temp_path = os.path.join(folder, temp_filename)
 
-    with open(temp_path, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
-
-    file_hash = get_file_hash(temp_path)
+    try:
+        save_upload(file, temp_path, MAX_UPLOAD_BYTES)
+    except ValueError:
+        raise HTTPException(status_code=413, detail=f"File exceeds the {MAX_UPLOAD_MB}MB upload limit")
 
     # Handle non-image files
     if folder == FILE_FOLDER:
-        db.close()
         return {
             "message": "File uploaded successfully",
             "filename": file.filename,
             "url": f"/uploads/files/{file.filename}",
         }
 
+    # The client-supplied content-type is easy to spoof - confirm the bytes
+    # we actually saved decode as a real image before treating it as one.
+    if not is_valid_image(temp_path):
+        os.remove(temp_path)
+        raise HTTPException(status_code=400, detail="File is not a valid image")
+
+    file_hash = get_file_hash(temp_path)
+
     # Check duplicate
     existing = db.query(Photo).filter(Photo.file_hash == file_hash).first()
     if existing:
         os.remove(temp_path)
-        db.close()
         return {
             "message": "Duplicate image",
             "filename": existing.saved_filename,
@@ -90,20 +102,25 @@ async def upload_photo(file: UploadFile = File(...), user: str = Depends(authent
     db.add(photo)
     db.commit()
     db.refresh(photo)
-    db.close()
 
     return {
         "id": photo.id,
         "filename": new_filename,
         "taken_date": taken_date,
-        "tags": tags_str.split(","), 
+        "tags": tags_str.split(","),
         "url": f"/uploads/photos/{new_filename}",
     }
 
 @router.get("/photos")
-def get_photos(search: str = "", date: str = "", show_tags: bool = False, user: str = Depends(authenticate)):
-    db = SessionLocal()
-
+def get_photos(
+    search: str = "",
+    date: str = "",
+    show_tags: bool = False,
+    limit: int | None = None,
+    offset: int = 0,
+    db: Session = Depends(get_db),
+    user: str = Depends(authenticate),
+):
     query = db.query(Photo)
 
     if search:
@@ -117,8 +134,17 @@ def get_photos(search: str = "", date: str = "", show_tags: bool = False, user: 
         exif_date = date.replace("-", ":")
         query = query.filter(Photo.taken_date.contains(exif_date))
 
-    photos = query.order_by(Photo.id.desc()).all()
-    db.close()
+    query = query.order_by(Photo.id.desc())
+
+    # Pagination is opt-in: with no limit given, behavior is unchanged
+    # (returns everything) so the existing frontend keeps working as-is.
+    if offset:
+        query = query.offset(offset)
+
+    if limit:
+        query = query.limit(min(limit, 500))
+
+    photos = query.all()
 
     return [
         {
@@ -160,13 +186,10 @@ async def download_zip(filenames: list[str], user: str = Depends(authenticate)):
 
 
 @router.delete("/photos/{filename}")
-def delete_photo(filename: str, user: str = Depends(authenticate)):
-    db = SessionLocal()
-
+def delete_photo(filename: str, db: Session = Depends(get_db), user: str = Depends(authenticate)):
     photo = db.query(Photo).filter(Photo.saved_filename == filename).first()
 
     if photo is None:
-        db.close()
         raise HTTPException(status_code=404, detail="Photo not found in database")
 
     try:
@@ -179,7 +202,6 @@ def delete_photo(filename: str, user: str = Depends(authenticate)):
 
     db.delete(photo)
     db.commit()
-    db.close()
 
     return {
         "message": "Photo deleted successfully",
@@ -187,18 +209,19 @@ def delete_photo(filename: str, user: str = Depends(authenticate)):
     }
 
 @router.post("/photos/{filename}/album")
-def update_photo_album(filename: str, data: AlbumUpdate, user: str = Depends(authenticate)):
-    db = SessionLocal()
-
+def update_photo_album(
+    filename: str,
+    data: AlbumUpdate,
+    db: Session = Depends(get_db),
+    user: str = Depends(authenticate),
+):
     photo = db.query(Photo).filter(Photo.saved_filename == filename).first()
 
     if not photo:
-        db.close()
         raise HTTPException(status_code=404, detail="Photo not found")
 
     photo.album = data.album
     db.commit()
-    db.close()
 
     return {
         "message": "Album updated",
@@ -211,11 +234,8 @@ def update_photo_album(filename: str, data: AlbumUpdate, user: str = Depends(aut
 
 
 @router.get("/photos/album/{album}")
-def get_photos_by_album(album: str, user: str = Depends(authenticate)):
-    db = SessionLocal()
-
+def get_photos_by_album(album: str, db: Session = Depends(get_db), user: str = Depends(authenticate)):
     photos = db.query(Photo).filter(Photo.album == album).order_by(Photo.id.desc()).all()
-    db.close()
 
     return [
         {

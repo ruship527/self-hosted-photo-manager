@@ -1,7 +1,9 @@
 import os
 
 from fastapi import APIRouter, Depends
-from app.database import SessionLocal
+from sqlalchemy.orm import Session
+
+from app.database import get_db
 from app.models import Photo
 from app.routes.auth import authenticate
 from app.utils import PHOTO_FOLDER, FILE_FOLDER
@@ -10,12 +12,11 @@ router = APIRouter(tags=["Stats"])
 
 
 @router.get("/stats")
-def get_stats(user: str = Depends(authenticate)):
-    db = SessionLocal()
+def get_stats(db: Session = Depends(get_db), user: str = Depends(authenticate)):
     photos = db.query(Photo).all()
-    db.close()
 
     total_photos = len(photos)
+    os.makedirs(FILE_FOLDER, exist_ok=True)
     files = os.listdir(FILE_FOLDER)
     total_files = len(files)
 
