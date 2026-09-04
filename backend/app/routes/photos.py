@@ -1,5 +1,5 @@
-from fastapi import APIRouter, UploadFile, File, HTTPException, Request
-from fastapi.responses import StreamingResponse, HTMLResponse, FileResponse
+from fastapi import APIRouter, Depends, UploadFile, File, HTTPException, Request
+from fastapi.responses import StreamingResponse
 from app.database import SessionLocal
 from app.models import Photo
 import os
@@ -9,12 +9,10 @@ import io
 from datetime import datetime
 from pydantic import BaseModel
 import uuid
-from fastapi.templating import Jinja2Templates
 
-
+from app.routes.auth import authenticate
 
 router = APIRouter()
-templates = Jinja2Templates(directory="/home/rushi/Photoapp/frontend/")
 
 class AlbumUpdate(BaseModel):
     album: str
@@ -25,13 +23,15 @@ from app.utils import (
     get_file_hash,
     get_photo_taken_date,
     build_filename,
-    generate_ai_tags
+    generate_ai_tags,
+    sanitize_filename,
+    safe_join,
 )
 
 
 
 @router.post("/photos/upload")
-async def upload_photo(file: UploadFile = File(...)):
+async def upload_photo(file: UploadFile = File(...), user: str = Depends(authenticate)):
     db = SessionLocal()
 
     if file.content_type and file.content_type.startswith("image/"):
@@ -39,7 +39,8 @@ async def upload_photo(file: UploadFile = File(...)):
     else:
         folder = FILE_FOLDER
 
-    temp_filename = f"temp_{uuid.uuid4()}_{file.filename}"
+    safe_name = sanitize_filename(file.filename)
+    temp_filename = f"temp_{uuid.uuid4()}_{safe_name}"
     temp_path = os.path.join(folder, temp_filename)
 
     with open(temp_path, "wb") as buffer:
@@ -100,7 +101,7 @@ async def upload_photo(file: UploadFile = File(...)):
     }
 
 @router.get("/photos")
-def get_photos(search: str = "", date: str = "", show_tags: bool = False):
+def get_photos(search: str = "", date: str = "", show_tags: bool = False, user: str = Depends(authenticate)):
     db = SessionLocal()
 
     query = db.query(Photo)
@@ -133,20 +134,19 @@ def get_photos(search: str = "", date: str = "", show_tags: bool = False):
         for p in photos
     ]
 
-@router.get("/gallery", response_class=HTMLResponse)
-def gallery_page():
-    return FileResponse("/home/rushi/Photoapp/frontend/photos.html")
-
 @router.post("/photos/download-zip")
-async def download_zip(filenames: list[str]):
+async def download_zip(filenames: list[str], user: str = Depends(authenticate)):
     zip_buffer = io.BytesIO()
 
     with zipfile.ZipFile(zip_buffer, "w") as zip_file:
         for name in filenames:
-            file_path = os.path.join(PHOTO_FOLDER, name)
+            try:
+                file_path = safe_join(PHOTO_FOLDER, name)
+            except ValueError:
+                continue
 
-            if os.path.exists(file_path):
-                zip_file.write(file_path, arcname=name)
+            if os.path.isfile(file_path):
+                zip_file.write(file_path, arcname=os.path.basename(file_path))
 
     zip_buffer.seek(0)
 
@@ -160,7 +160,7 @@ async def download_zip(filenames: list[str]):
 
 
 @router.delete("/photos/{filename}")
-def delete_photo(filename: str):
+def delete_photo(filename: str, user: str = Depends(authenticate)):
     db = SessionLocal()
 
     photo = db.query(Photo).filter(Photo.saved_filename == filename).first()
@@ -169,9 +169,12 @@ def delete_photo(filename: str):
         db.close()
         raise HTTPException(status_code=404, detail="Photo not found in database")
 
-    file_path = os.path.join(PHOTO_FOLDER, filename)
+    try:
+        file_path = safe_join(PHOTO_FOLDER, filename)
+    except ValueError:
+        file_path = None
 
-    if os.path.exists(file_path):
+    if file_path and os.path.exists(file_path):
         os.remove(file_path)
 
     db.delete(photo)
@@ -184,7 +187,7 @@ def delete_photo(filename: str):
     }
 
 @router.post("/photos/{filename}/album")
-def update_photo_album(filename: str, data: AlbumUpdate):
+def update_photo_album(filename: str, data: AlbumUpdate, user: str = Depends(authenticate)):
     db = SessionLocal()
 
     photo = db.query(Photo).filter(Photo.saved_filename == filename).first()
@@ -208,7 +211,7 @@ def update_photo_album(filename: str, data: AlbumUpdate):
 
 
 @router.get("/photos/album/{album}")
-def get_photos_by_album(album: str):
+def get_photos_by_album(album: str, user: str = Depends(authenticate)):
     db = SessionLocal()
 
     photos = db.query(Photo).filter(Photo.album == album).order_by(Photo.id.desc()).all()

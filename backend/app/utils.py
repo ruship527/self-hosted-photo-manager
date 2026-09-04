@@ -42,13 +42,35 @@ def get_file_hash(file_path):
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-UPLOAD_FOLDER = "/DATA/photoapp/uploads"
-PHOTO_FOLDER = "/DATA/photoapp/uploads/photos"
-FILE_FOLDER = "/DATA/photoapp/uploads/files"
+UPLOAD_FOLDER = os.environ.get("UPLOAD_FOLDER", "/DATA/photoapp/uploads")
+PHOTO_FOLDER = os.path.join(UPLOAD_FOLDER, "photos")
+FILE_FOLDER = os.path.join(UPLOAD_FOLDER, "files")
 
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(PHOTO_FOLDER, exist_ok=True)
 os.makedirs(FILE_FOLDER, exist_ok=True)
+
+
+def sanitize_filename(filename: str) -> str:
+    """Strip any path component / null bytes so a user-supplied filename
+    can never escape the folder it's joined into."""
+    name = os.path.basename((filename or "").replace("\x00", ""))
+
+    if not name or name in {".", ".."}:
+        raise ValueError("Invalid filename")
+
+    return name
+
+
+def safe_join(folder: str, filename: str) -> str:
+    """os.path.join that refuses to resolve outside `folder`."""
+    candidate = os.path.realpath(os.path.join(folder, sanitize_filename(filename)))
+    folder_real = os.path.realpath(folder)
+
+    if candidate != folder_real and not candidate.startswith(folder_real + os.sep):
+        raise ValueError("Path escapes target folder")
+
+    return candidate
 
 
 

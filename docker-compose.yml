@@ -2,6 +2,8 @@ services:
   photoapp:
     build: ./backend
     container_name: photoapp
+    env_file:
+      - .env
     ports:
       - "8000:8000"
     dns:

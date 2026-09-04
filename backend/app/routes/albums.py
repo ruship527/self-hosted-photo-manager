@@ -19,7 +19,7 @@ templates = Jinja2Templates(
 )
 
 @router.get("/albums")
-def albums_page(request: Request, db: Session = Depends(get_db)):
+def albums_page(request: Request, db: Session = Depends(get_db), user: str = Depends(authenticate)):
     albums = db.query(Album).all()
 
     return templates.TemplateResponse(
@@ -31,11 +31,11 @@ def albums_page(request: Request, db: Session = Depends(get_db)):
     )
 
 @router.get("/albums/data")
-def get_albums(db: Session = Depends(get_db)):
+def get_albums(db: Session = Depends(get_db), user: str = Depends(authenticate)):
     return db.query(Album).all()
 
 @router.post("/albums/create")
-def create_album(name: str = Form(...), db: Session = Depends(get_db)):
+def create_album(name: str = Form(...), db: Session = Depends(get_db), user: str = Depends(authenticate)):
     album = Album(name=name)
 
     db.add(album)
@@ -46,7 +46,7 @@ def create_album(name: str = Form(...), db: Session = Depends(get_db)):
 
 
 @router.get("/albums/{album_id}")
-def get_album(request: Request, album_id: int, db: Session = Depends(get_db)):
+def get_album(request: Request, album_id: int, db: Session = Depends(get_db), user: str = Depends(authenticate)):
     album = db.query(Album).filter(Album.id == album_id).first()
 
     if not album:
@@ -78,7 +78,8 @@ def get_album(request: Request, album_id: int, db: Session = Depends(get_db)):
 def add_photo_to_album(
     album_id: int,
     photo_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    user: str = Depends(authenticate)
 ):
     album = db.query(Album).filter(Album.id == album_id).first()
     photo = db.query(Photo).filter(Photo.id == photo_id).first()
@@ -112,7 +113,8 @@ def add_photo_to_album(
 def remove_photo_from_album(
     album_id: int,
     photo_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    user: str = Depends(authenticate)
 ):
     album_photo = db.query(AlbumPhoto).filter(
         AlbumPhoto.album_id == album_id,
@@ -129,7 +131,7 @@ def remove_photo_from_album(
 
 
 @router.post("/albums/{album_id}/delete")
-def delete_album(album_id: int, db: Session = Depends(get_db)):
+def delete_album(album_id: int, db: Session = Depends(get_db), user: str = Depends(authenticate)):
     album = db.query(Album).filter(Album.id == album_id).first()
 
     if not album:
