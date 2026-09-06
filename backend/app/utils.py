@@ -16,34 +16,63 @@ def build_filename(original_filename):
     return unique_name + ext
 
 
+_EXIF_IFD_POINTER = 0x8769  # "ExifOffset" - points at the Exif SubIFD
+
+# Priority order for whichever real metadata date is present. DateTimeOriginal
+# (actual capture time) and DateTimeDigitized live in the Exif SubIFD; the
+# bare "DateTime" tag on the top-level IFD is only last-modified, but it's
+# still real metadata and beats guessing, so it's the final fallback before
+# giving up on EXIF entirely.
+_TAKEN_DATE_TAGS = ("DateTimeOriginal", "DateTimeDigitized", "DateTime")
+
+
+def _find_tag_value(tag_dict, wanted_name):
+    for tag_id, value in tag_dict.items():
+        if TAGS.get(tag_id, tag_id) == wanted_name:
+            return value
+    return None
+
+
+def _parse_exif_datetime(value, image_path):
+    if value is None:
+        return None
+
+    # Some cameras null-pad this field, or write an all-zero placeholder
+    # ("0000:00:00 00:00:00") when the date is unknown - neither is a real
+    # date.
+    value = str(value).strip().rstrip("\x00")
+
+    if not value or value.startswith("0000"):
+        return None
+
+    try:
+        return datetime.strptime(value, "%Y:%m:%d %H:%M:%S").strftime("%Y-%m-%d %H:%M:%S")
+    except ValueError:
+        logger.warning("Unparseable EXIF date %r for %s", value, image_path)
+        return None
+
+
 def get_photo_taken_date(image_path, fallback):
     """Read the photo's actual capture date from EXIF. `fallback` (the
-    upload timestamp, formatted the same way) is used whenever there's no
-    usable EXIF date - callers should pass the exact same value they're
-    about to store as the photo's upload_date, so the two never drift."""
+    upload timestamp, formatted the same way) is used only when the photo
+    has no usable date in its metadata at all - callers should pass the
+    exact same value they're about to store as the photo's upload_date,
+    so the two never drift."""
     try:
         image = Image.open(image_path)
-        exif_data = image.getexif()
+        top_level = image.getexif()
 
-        for tag_id, value in exif_data.items():
-            tag = TAGS.get(tag_id, tag_id)
+        # DateTimeOriginal/DateTimeDigitized live in the Exif SubIFD, not
+        # the top-level IFD that getexif() returns by itself - real camera
+        # JPEGs never had these tags at the top level, so scanning only
+        # top_level (as this used to) never found them.
+        sub_ifd = top_level.get_ifd(_EXIF_IFD_POINTER)
 
-            if tag != "DateTimeOriginal":
-                continue
-
-            # Some cameras null-pad this field, or write an all-zero
-            # placeholder ("0000:00:00 00:00:00") when the date is unknown -
-            # neither is a real date, so fall through to the upload date.
-            value = str(value).strip().rstrip("\x00")
-
-            if not value or value.startswith("0000"):
-                break
-
-            try:
-                return datetime.strptime(value, "%Y:%m:%d %H:%M:%S").strftime("%Y-%m-%d %H:%M:%S")
-            except ValueError:
-                logger.warning("Unparseable EXIF DateTimeOriginal %r for %s", value, image_path)
-                break
+        for tag_name in _TAKEN_DATE_TAGS:
+            value = _find_tag_value(sub_ifd, tag_name) or _find_tag_value(top_level, tag_name)
+            parsed = _parse_exif_datetime(value, image_path)
+            if parsed:
+                return parsed
 
     except Exception:
         logger.exception("Failed to read EXIF date for %s", image_path)
