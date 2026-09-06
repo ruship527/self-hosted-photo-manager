@@ -82,7 +82,14 @@ async def upload_photo(
             "filename": existing.saved_filename,
         }
 
-    taken_date = get_photo_taken_date(temp_path)
+    # Captured once, up front - get_photo_taken_date's fallback (used when
+    # there's no EXIF date) and the upload_date field below must be the
+    # exact same instant. Computing them as two separate datetime.now()
+    # calls straddling the slow AI-tagging step let them drift by however
+    # long tagging took, so a photo with no EXIF looked "taken" seconds
+    # before it was actually uploaded.
+    upload_time = datetime.now()
+    taken_date = get_photo_taken_date(temp_path, fallback=upload_time.strftime("%Y-%m-%d %H:%M:%S"))
     new_filename = build_filename(file.filename)
     new_path = os.path.join(PHOTO_FOLDER, new_filename)
 
@@ -102,7 +109,7 @@ async def upload_photo(
         original_filename=file.filename,
         saved_filename=new_filename,
         taken_date=taken_date,
-        upload_date=datetime.now().isoformat(),
+        upload_date=upload_time.isoformat(),
         file_hash=file_hash,
         tags=tags_str,
         album="Unsorted"
