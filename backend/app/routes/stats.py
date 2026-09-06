@@ -1,4 +1,5 @@
 import os
+import shutil
 
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
@@ -6,7 +7,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models import Photo
 from app.routes.auth import authenticate
-from app.utils import PHOTO_FOLDER, FILE_FOLDER
+from app.utils import PHOTO_FOLDER, FILE_FOLDER, UPLOAD_FOLDER
 
 router = APIRouter(tags=["Stats"])
 
@@ -52,9 +53,16 @@ def get_stats(db: Session = Depends(get_db), user: str = Depends(authenticate)):
                     "size": size
                 }
 
+    # Real filesystem capacity for the volume uploads live on - lets the UI
+    # show genuine "X% of disk used" rather than just the app's own byte count.
+    disk = shutil.disk_usage(UPLOAD_FOLDER)
+
     return {
         "total_photos": total_photos,
         "total_files": total_files,
         "total_size": total_size,
-        "largest_file": largest_file
+        "largest_file": largest_file,
+        "disk_total": disk.total,
+        "disk_used": disk.used,
+        "disk_free": disk.free
     }

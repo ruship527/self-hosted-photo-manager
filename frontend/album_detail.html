@@ -56,30 +56,40 @@
 
         .navbar {
             display: flex;
-            justify-content: space-between;
-            align-items: center;
+            flex-direction: column;
             background: var(--chrome-bg);
             color: var(--chrome-text);
-            padding: 14px 24px;
             border-radius: 12px;
-            margin-bottom: 25px;
+            margin-bottom: 22px;
+        }
+
+        .topbar-row {
+            display: flex;
+            align-items: center;
+            gap: 18px;
+            padding: 12px 18px;
         }
 
         .logo {
-            font-size: 20px;
+            font-size: 17px;
             font-weight: bold;
+            white-space: nowrap;
         }
 
         .nav-links {
             display: flex;
             align-items: center;
+            justify-content: center;
+            gap: 4px;
+            padding: 6px 14px 10px;
+            border-top: 1px solid rgba(255,255,255,0.08);
         }
 
         .nav-links a {
             color: var(--chrome-text);
             text-decoration: none;
-            margin-left: 20px;
             font-weight: bold;
+            font-size: 14px;
             padding: 6px 10px;
             border-radius: 6px;
         }
@@ -88,29 +98,34 @@
             background: var(--primary);
         }
 
-        .theme-toggle {
+        .nav-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-left: auto;
+            flex-shrink: 0;
+        }
+
+        .icon-btn {
             width: 34px;
             height: 34px;
-            margin-left: 20px;
-            margin-top: 0;
+            margin: 0;
             padding: 0;
             border-radius: 50%;
             background: rgba(255,255,255,0.1);
             color: var(--chrome-text);
-            font-size: 13px;
-            font-weight: 700;
             display: inline-flex;
             align-items: center;
             justify-content: center;
         }
 
-        .theme-toggle:hover {
+        .icon-btn:hover {
             background: rgba(255,255,255,0.2);
         }
 
         @media (hover: hover) and (pointer: fine) {
             .nav-links a,
-            .theme-toggle {
+            .icon-btn {
                 transition: background-color 120ms ease-out;
             }
         }
@@ -232,6 +247,59 @@
             cursor: pointer;
         }
 
+        .storage-fab {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            z-index: 500;
+            width: 34px;
+            height: 34px;
+            margin: 0;
+            padding: 0;
+            border-radius: 50%;
+            background: var(--border);
+            box-shadow: var(--shadow-hover);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .storage-fab::before {
+            content: "";
+            position: absolute;
+            inset: 4px;
+            border-radius: 50%;
+            background: var(--surface);
+        }
+
+        .storage-fab span {
+            position: relative;
+            font-size: 8px;
+            font-weight: 700;
+            color: var(--text);
+        }
+
+        .storage-popover {
+            display: none;
+            position: fixed;
+            bottom: 62px;
+            left: 20px;
+            z-index: 500;
+            max-width: 220px;
+            padding: 12px 14px;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            background: var(--surface);
+            color: var(--text);
+            font-size: 13px;
+            line-height: 1.6;
+            box-shadow: var(--shadow-hover);
+        }
+
+        .storage-popover.show {
+            display: block;
+        }
+
         @media (prefers-reduced-motion: reduce) {
             body,
             .modal,
@@ -239,7 +307,7 @@
             .card,
             button,
             .nav-links a,
-            .theme-toggle {
+            .icon-btn {
                 transition: none;
             }
         }
@@ -248,13 +316,18 @@
 <body>
 
 <nav class="navbar">
-    <div class="logo">Homelab Drive</div>
+    <div class="topbar-row">
+        <div class="logo">Homelab Drive</div>
+
+        <div class="nav-actions">
+            <button id="themeToggle" class="icon-btn" type="button" onclick="toggleTheme()" aria-label="Toggle dark mode"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg></button>
+        </div>
+    </div>
 
     <div class="nav-links">
         <a href="/gallery">Photos</a>
         <a href="/files-page">Files</a>
         <a href="/albums" class="active">Albums</a>
-        <button id="themeToggle" class="theme-toggle" type="button" onclick="toggleTheme()" aria-label="Toggle dark mode"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg></button>
     </div>
 </nav>
 
@@ -303,6 +376,12 @@
     <img id="modalImage">
 </div>
 
+<button id="storageStat" class="storage-fab" type="button" aria-label="Storage usage" onclick="toggleStoragePopover()">
+    <span id="storagePct">--</span>
+</button>
+
+<div id="storagePopover" class="storage-popover">Loading...</div>
+
 <script>
     function toggleTheme() {
         const root = document.documentElement;
@@ -319,7 +398,6 @@
         updateThemeToggleLabel();
     }
 
-    // Hand-drawn SVG icons - no emoji, no font/platform rendering differences.
     const MOON_ICON = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>';
     const SUN_ICON = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>';
 
@@ -354,7 +432,38 @@
         if (e.key === "Escape") closeModal();
     });
 
+    async function loadStorageStat() {
+        const res = await fetch("/stats");
+        const data = await res.json();
+
+        const pct = data.disk_total ? Math.round((data.disk_used / data.disk_total) * 100) : 0;
+        const gb = (bytes) => (bytes / (1024 ** 3)).toFixed(1);
+
+        const fab = document.getElementById("storageStat");
+        fab.style.background = `conic-gradient(var(--primary) ${pct}%, var(--border) 0)`;
+        document.getElementById("storagePct").textContent = pct + "%";
+
+        document.getElementById("storagePopover").innerHTML = `
+            <strong>${gb(data.disk_used)} GB</strong> of ${gb(data.disk_total)} GB disk used<br>
+            ${data.total_photos} photos, ${data.total_files} files<br>
+            App storage: ${(data.total_size / (1024 * 1024)).toFixed(1)} MB
+        `;
+    }
+
+    function toggleStoragePopover() {
+        document.getElementById("storagePopover").classList.toggle("show");
+    }
+
+    document.addEventListener("click", function (e) {
+        const popover = document.getElementById("storagePopover");
+        const fab = document.getElementById("storageStat");
+        if (popover.classList.contains("show") && !popover.contains(e.target) && !fab.contains(e.target)) {
+            popover.classList.remove("show");
+        }
+    });
+
     updateThemeToggleLabel();
+    loadStorageStat();
 </script>
 
 </body>

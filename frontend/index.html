@@ -53,32 +53,45 @@
             transition: background-color 150ms ease-out, color 150ms ease-out;
         }
 
+        /* --- Navbar: a top row (logo, search, icon actions) - the --- */
+        /* --- prominent Immich-style search strip - plus a slim    --- */
+        /* --- tab row underneath it for Photos/Files/Albums.       --- */
         .navbar {
             display: flex;
-            justify-content: space-between;
-            align-items: center;
+            flex-direction: column;
             background: var(--chrome-bg);
             color: var(--chrome-text);
-            padding: 14px 24px;
             border-radius: 12px;
-            margin-bottom: 25px;
+            margin-bottom: 22px;
+        }
+
+        .topbar-row {
+            display: flex;
+            align-items: center;
+            gap: 18px;
+            padding: 12px 18px;
         }
 
         .logo {
-            font-size: 20px;
+            font-size: 17px;
             font-weight: bold;
+            white-space: nowrap;
         }
 
         .nav-links {
             display: flex;
             align-items: center;
+            justify-content: center;
+            gap: 4px;
+            padding: 6px 14px 10px;
+            border-top: 1px solid rgba(255,255,255,0.08);
         }
 
         .nav-links a {
             color: var(--chrome-text);
             text-decoration: none;
-            margin-left: 20px;
             font-weight: bold;
+            font-size: 14px;
             padding: 6px 10px;
             border-radius: 6px;
         }
@@ -87,63 +100,104 @@
             background: var(--primary);
         }
 
-        .theme-toggle {
+        .nav-search {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            min-width: 0;
+        }
+
+        .nav-search form {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 18px;
+            border-radius: 999px;
+            border: 1px solid rgba(255,255,255,0.18);
+            background: rgba(255,255,255,0.08);
+        }
+
+        .nav-search svg {
+            flex-shrink: 0;
+            color: rgba(255,255,255,0.55);
+        }
+
+        /* #searchInput (not just .nav-search input) so this beats the generic
+           input[type="text"] rule below on specificity regardless of source
+           order - that rule was winning the tie and painting it solid white. */
+        #searchInput {
+            flex: 1;
+            width: 100%;
+            margin: 0;
+            padding: 0;
+            border: none;
+            background: none;
+            font-size: 15px;
+            color: var(--chrome-text);
+        }
+
+        #searchInput:focus {
+            outline: none;
+        }
+
+        #searchInput::placeholder {
+            color: rgba(255,255,255,0.55);
+        }
+
+        .nav-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-left: auto;
+            flex-shrink: 0;
+        }
+
+        .icon-btn {
             width: 34px;
             height: 34px;
-            margin-left: 20px;
-            margin-top: 0;
+            margin: 0;
             padding: 0;
             border-radius: 50%;
             background: rgba(255,255,255,0.1);
             color: var(--chrome-text);
-            font-size: 13px;
-            font-weight: 700;
             display: inline-flex;
             align-items: center;
             justify-content: center;
         }
 
-        .theme-toggle:hover {
+        .icon-btn:hover {
             background: rgba(255,255,255,0.2);
         }
 
         @media (hover: hover) and (pointer: fine) {
             .nav-links a,
-            .theme-toggle {
+            .icon-btn {
                 transition: background-color 120ms ease-out;
             }
         }
 
-        #dropZone {
-            display: block;
-            border: 2px dashed var(--primary);
-            padding: 30px;
-            text-align: center;
-            border-radius: 12px;
-            margin: 20px 0;
+        /* Full-page drop target replaces the old dedicated dropzone box -
+           upload now starts from the icon button; dragging a file anywhere
+           on the page still works, this overlay is just the visual cue. */
+        #dropOverlay {
+            display: none;
+            position: fixed;
+            inset: 16px;
+            z-index: 800;
+            border: 3px dashed var(--primary);
+            border-radius: 16px;
+            background: color-mix(in srgb, var(--primary) 8%, transparent);
             color: var(--primary);
-            cursor: pointer;
-            transition: background-color 150ms ease-out, border-color 150ms ease-out;
+            font-size: 20px;
+            font-weight: 700;
+            align-items: center;
+            justify-content: center;
+            pointer-events: none;
         }
 
-        @media (hover: hover) and (pointer: fine) {
-            #dropZone:hover {
-                background: color-mix(in srgb, var(--primary) 6%, transparent);
-            }
-        }
-
-        #dropZone.dragover {
-            background: color-mix(in srgb, var(--primary) 12%, transparent);
-        }
-
-        #dropZone p {
-            margin: 0;
-            font-weight: 600;
-        }
-
-        #dropZone p span {
-            font-weight: 400;
-            color: var(--text-muted);
+        #dropOverlay.show {
+            display: flex;
         }
 
         /* --- Photo grid: grouped by day (Immich-style), each day's own --- */
@@ -188,39 +242,11 @@
             }
         }
 
-        .card-media {
-            position: relative;
-        }
-
-        .card-media .select-photo {
-            position: absolute;
-            top: 8px;
-            left: 8px;
-            width: 18px;
-            height: 18px;
-            cursor: pointer;
-        }
-
         .card img {
             width: 100%;
             height: auto;
             display: block;
             cursor: pointer;
-        }
-
-        .card-body {
-            padding: 10px 12px 12px;
-            color: var(--text);
-        }
-
-        .card-body p {
-            margin: 4px 0;
-        }
-
-        .card-actions {
-            display: flex;
-            justify-content: space-between;
-            margin-top: 10px;
         }
 
         button {
@@ -243,23 +269,11 @@
             transform: scale(0.97);
         }
 
-        .delete-photo-btn,
-        .delete-btn {
-            background: var(--danger);
-        }
-
-        .delete-photo-btn:hover,
-        .delete-btn:hover {
-            background: var(--danger-hover);
-        }
-
         .controls {
-            margin-bottom: 20px;
+            margin-bottom: 10px;
         }
 
-        input[type="text"],
-        input[type="date"],
-        input[type="file"] {
+        input[type="text"] {
             margin-top: 10px;
             padding: 6px 10px;
             border: 1px solid var(--border);
@@ -268,17 +282,59 @@
             color: var(--text);
         }
 
-        input[type="text"] {
-            width: 250px;
+        /* --- Storage indicator: a small donut ring, bottom-left, fixed --- */
+        /* --- across scroll, showing real disk usage on click.         --- */
+        .storage-fab {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            z-index: 500;
+            width: 34px;
+            height: 34px;
+            margin: 0;
+            padding: 0;
+            border-radius: 50%;
+            background: var(--border);
+            box-shadow: var(--shadow-hover);
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
-        .stats-box {
-            margin-bottom: 20px;
-            padding: 15px;
-            border: 1px solid var(--border);
+        .storage-fab::before {
+            content: "";
+            position: absolute;
+            inset: 4px;
+            border-radius: 50%;
+            background: var(--surface);
+        }
+
+        .storage-fab span {
+            position: relative;
+            font-size: 8px;
+            font-weight: 700;
+            color: var(--text);
+        }
+
+        .storage-popover {
+            display: none;
+            position: fixed;
+            bottom: 62px;
+            left: 20px;
+            z-index: 500;
+            max-width: 220px;
+            padding: 12px 14px;
             border-radius: 10px;
+            border: 1px solid var(--border);
             background: var(--surface);
             color: var(--text);
+            font-size: 13px;
+            line-height: 1.6;
+            box-shadow: var(--shadow-hover);
+        }
+
+        .storage-popover.show {
+            display: block;
         }
 
         /* --- Full-screen lightbox (inspired by Immich's photo viewer): --- */
@@ -368,10 +424,8 @@
         }
 
         .lightbox-icon-btn {
+            width: 40px;
             height: 40px;
-            padding: 0 16px;
-            font-size: 13px;
-            font-weight: 600;
         }
 
         .lightbox-nav {
@@ -419,12 +473,11 @@
             body,
             .modal,
             .lightbox-img,
-            #dropZone,
             .gallery,
             .card,
             button,
             .nav-links a,
-            .theme-toggle {
+            .icon-btn {
                 transition: none;
             }
         }
@@ -433,47 +486,45 @@
 
 <body>
     <nav class="navbar">
-        <div class="logo">Homelab Drive</div>
+        <div class="topbar-row">
+            <div class="logo">Homelab Drive</div>
+
+            <div class="nav-search">
+                <form onsubmit="event.preventDefault(); fetchPhotos();">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                    <input type="text" id="searchInput" placeholder="Search your photos">
+                </form>
+            </div>
+
+            <div class="nav-actions">
+                <input type="file" id="fileInput" multiple hidden>
+                <button id="uploadBtn" class="icon-btn" type="button" onclick="fileInput.click()" aria-label="Upload"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg></button>
+                <button id="themeToggle" class="icon-btn" type="button" onclick="toggleTheme()" aria-label="Toggle dark mode"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg></button>
+            </div>
+        </div>
 
         <div class="nav-links">
             <a href="/gallery" class="active">Photos</a>
             <a href="/files-page">Files</a>
             <a href="/albums">Albums</a>
-            <button id="themeToggle" class="theme-toggle" type="button" onclick="toggleTheme()" aria-label="Toggle dark mode"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg></button>
         </div>
     </nav>
     <h1>Photos</h1>
 
-    <label id="dropZone" for="fileInput">
-        <input type="file" id="fileInput" multiple hidden>
-        <p><strong>Click to upload</strong> <span>or drag photos and files here</span></p>
-    </label>
-
     <div class="controls">
-        <button onclick="downloadSelected()">Download Selected</button> <button onclick="deleteSelected()">Delete Selected</button>
-        <p id="downloadStatus"></p>
-
-
         <p id="status"></p>
-
         <progress id="uploadProgress" value="0" max="100" style="display:none; width:100%;"></progress>
-
-        <input type="text" id="searchInput" placeholder="Search filename">
-        <button onclick="fetchPhotos()">Search</button>
-
-        <br><br>
-
-        <input type="date" id="dateInput">
-        <button onclick="fetchPhotos()">Filter by Date</button>
-        <button onclick="clearFilters()">Clear</button>
-    </div>
-
-    <div class="stats-box">
-        <h3>Storage Stats</h3>
-        <p id="statsContent">Loading...</p>
     </div>
 
     <div class="gallery" id="gallery"></div>
+
+    <div id="dropOverlay">Drop to upload</div>
+
+    <button id="storageStat" class="storage-fab" type="button" aria-label="Storage usage" onclick="toggleStoragePopover()">
+        <span id="storagePct">--</span>
+    </button>
+
+    <div id="storagePopover" class="storage-popover">Loading...</div>
 
     <div id="detailsModal" class="modal lightbox">
         <button class="lightbox-close" onclick="closePhotoDetails()" aria-label="Close">✕</button>
@@ -482,8 +533,8 @@
         <button id="nextPhotoBtn" class="lightbox-nav lightbox-next" onclick="showNextPhoto()" aria-label="Next photo">›</button>
 
         <div class="lightbox-toolbar">
-            <a id="detailsDownload" class="lightbox-icon-btn" download aria-label="Download">Download</a>
-            <button id="detailsDelete" class="lightbox-icon-btn lightbox-danger" aria-label="Delete">Delete</button>
+            <a id="detailsDownload" class="lightbox-icon-btn" download aria-label="Download"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg></a>
+            <button id="detailsDelete" class="lightbox-icon-btn lightbox-danger" aria-label="Delete"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg></button>
         </div>
 
         <img id="detailsImage" class="lightbox-img">
@@ -546,31 +597,12 @@
         const card = document.createElement("div");
         card.className = "card";
 
-        card.innerHTML = `
-            <div class="card-media">
-                <input type="checkbox" value="${photo.filename}" class="select-photo">
-                <img class="photo-img" src="${API_URL}${photo.thumbnail_url || photo.url}" loading="lazy">
-            </div>
-
-            <div class="card-body">
-                <p><b>Filename:</b> ${photo.filename}</p>
-                <p><b>Taken:</b> ${photo.taken_date || "Unknown"}</p>
-
-                <div class="card-actions">
-                    <a href="${API_URL}${photo.url}" download>
-                        <button>Download</button>
-                    </a>
-                    <button class="delete-photo-btn">Delete</button>
-                </div>
-            </div>
-        `;
+        // Cards show only the image - filename, date, and the download/
+        // delete actions live in the lightbox that opens on click.
+        card.innerHTML = `<img class="photo-img" src="${API_URL}${photo.thumbnail_url || photo.url}" loading="lazy">`;
 
         card.querySelector(".photo-img").addEventListener("click", function () {
             openPhotoDetails(index);
-        });
-
-        card.querySelector(".delete-photo-btn").addEventListener("click", function () {
-            deletePhoto(photo.filename);
         });
 
         return card;
@@ -578,13 +610,17 @@
 
     async function fetchPhotos() {
         const search = document.getElementById("searchInput").value || "";
-        const date = document.getElementById("dateInput").value || "";
 
         const response = await fetch(
-            `${API_URL}/photos?search=${encodeURIComponent(search)}&date=${encodeURIComponent(date)}&show_tags=true`
+            `${API_URL}/photos?search=${encodeURIComponent(search)}&show_tags=true`
         );
 
         const photos = await response.json();
+
+        // Order by when each photo was actually taken (not upload order) -
+        // the backend returns newest-uploaded-first, which put an old photo
+        // uploaded late at the top instead of grouped with its real date.
+        photos.sort((a, b) => (b.taken_date || "").localeCompare(a.taken_date || ""));
         currentPhotos = photos;
 
         const gallery = document.getElementById("gallery");
@@ -616,25 +652,35 @@
         requestAnimationFrame(() => { gallery.style.opacity = "1"; });
     }
 
-    function clearFilters() {
-        document.getElementById("searchInput").value = "";
-        document.getElementById("dateInput").value = "";
-        fetchPhotos();
-    }
-
-    async function loadStats() {
+    async function loadStorageStat() {
         const res = await fetch(`${API_URL}/stats`);
         const data = await res.json();
 
-        const mb = (data.total_size / (1024 * 1024)).toFixed(2);
+        const pct = data.disk_total ? Math.round((data.disk_used / data.disk_total) * 100) : 0;
+        const gb = (bytes) => (bytes / (1024 ** 3)).toFixed(1);
 
-        document.getElementById("statsContent").innerHTML = `
-            Photos: ${data.total_photos}<br>
-            Files: ${data.total_files}<br>
-            Storage Used: ${mb} MB<br>
-            Largest File: ${data.largest_file.name || "None"}
+        const fab = document.getElementById("storageStat");
+        fab.style.background = `conic-gradient(var(--primary) ${pct}%, var(--border) 0)`;
+        document.getElementById("storagePct").textContent = pct + "%";
+
+        document.getElementById("storagePopover").innerHTML = `
+            <strong>${gb(data.disk_used)} GB</strong> of ${gb(data.disk_total)} GB disk used<br>
+            ${data.total_photos} photos, ${data.total_files} files<br>
+            App storage: ${(data.total_size / (1024 * 1024)).toFixed(1)} MB
         `;
     }
+
+    function toggleStoragePopover() {
+        document.getElementById("storagePopover").classList.toggle("show");
+    }
+
+    document.addEventListener("click", function (e) {
+        const popover = document.getElementById("storagePopover");
+        const fab = document.getElementById("storageStat");
+        if (popover.classList.contains("show") && !popover.contains(e.target) && !fab.contains(e.target)) {
+            popover.classList.remove("show");
+        }
+    });
 
     // Shared by both the click-to-upload file input and drag-and-drop -
     // previously each had its own copy, and only the drag-and-drop path
@@ -674,6 +720,7 @@
         document.body.style.cursor = "default";
 
         await fetchPhotos();
+        await loadStorageStat();
         progress.style.display = "none";
     }
 
@@ -685,61 +732,7 @@
         });
 
         await fetchPhotos();
-    }
-
-    function getSelectedPhotos() {
-        return Array.from(document.querySelectorAll(".select-photo:checked"))
-            .map(cb => cb.value);
-    }
-
-    async function deleteSelected() {
-        const selected = getSelectedPhotos();
-
-        if (selected.length === 0) {
-            alert("Select at least one photo");
-            return;
-        }
-
-        for (const filename of selected) {
-            await fetch(`${API_URL}/photos/${encodeURIComponent(filename)}`, {
-                method: "DELETE"
-            });
-        }
-
-        await fetchPhotos();
-    }
-
-    async function downloadSelected() {
-        const selected = getSelectedPhotos();
-
-        if (selected.length === 0) {
-            alert("Select photos first");
-            return;
-        }
-
-        document.getElementById("downloadStatus").textContent = "Preparing download...";
-        document.body.style.cursor = "wait";
-
-        const res = await fetch(`${API_URL}/photos/download-zip`, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify(selected)
-        });
-
-        const blob = await res.blob();
-        const url = window.URL.createObjectURL(blob);
-
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = "photos.zip";
-        a.click();
-
-        window.URL.revokeObjectURL(url);
-
-        document.getElementById("downloadStatus").textContent = "";
-        document.body.style.cursor = "default";
+        await loadStorageStat();
     }
 
     function openPhotoDetails(index) {
@@ -800,7 +793,6 @@
         if (e.key === "ArrowRight") showNextPhoto();
     });
 
-    const dropZone = document.getElementById("dropZone");
     const fileInput = document.getElementById("fileInput");
 
     fileInput.addEventListener("change", function () {
@@ -808,29 +800,37 @@
         this.value = "";
     });
 
-    // Bug fix: "dragover" was only ever removed, never added, so the
-    // drop zone never actually showed drag feedback. Wire up the enter/leave.
-    ["dragenter", "dragover"].forEach(evt => {
-        dropZone.addEventListener(evt, function (e) {
-            e.preventDefault();
-            dropZone.classList.add("dragover");
-        });
+    // Drag-and-drop now works anywhere on the page (no dedicated dropzone
+    // box) - the overlay is just the visual cue that a drop will upload.
+    const dropOverlay = document.getElementById("dropOverlay");
+    let dragDepth = 0;
+
+    document.addEventListener("dragenter", function (e) {
+        e.preventDefault();
+        dragDepth++;
+        dropOverlay.classList.add("show");
     });
 
-    dropZone.addEventListener("dragleave", function (e) {
+    document.addEventListener("dragover", function (e) {
         e.preventDefault();
-        dropZone.classList.remove("dragover");
     });
 
-    dropZone.addEventListener("drop", async function (e) {
+    document.addEventListener("dragleave", function (e) {
         e.preventDefault();
-        dropZone.classList.remove("dragover");
+        dragDepth = Math.max(0, dragDepth - 1);
+        if (dragDepth === 0) dropOverlay.classList.remove("show");
+    });
+
+    document.addEventListener("drop", async function (e) {
+        e.preventDefault();
+        dragDepth = 0;
+        dropOverlay.classList.remove("show");
         await handleFiles(e.dataTransfer.files);
     });
 
     updateThemeToggleLabel();
     fetchPhotos();
-    loadStats();
+    loadStorageStat();
     </script>
 </body>
 </html>
