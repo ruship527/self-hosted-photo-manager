@@ -19,12 +19,15 @@ router = APIRouter(tags=["Files"])
 
 
 @router.get("/files")
-def get_files(user: str = Depends(authenticate)):
+def get_files(search: str = "", user: str = Depends(authenticate)):
     files = []
 
     os.makedirs(FILE_FOLDER, exist_ok=True)
 
     for filename in os.listdir(FILE_FOLDER):
+        if search and search.lower() not in filename.lower():
+            continue
+
         path = os.path.join(FILE_FOLDER, filename)
 
         if os.path.isfile(path):

@@ -19,14 +19,20 @@ templates = Jinja2Templates(
 )
 
 @router.get("/albums")
-def albums_page(request: Request, db: Session = Depends(get_db), user: str = Depends(authenticate)):
-    albums = db.query(Album).all()
+def albums_page(request: Request, search: str = "", db: Session = Depends(get_db), user: str = Depends(authenticate)):
+    query = db.query(Album)
+
+    if search:
+        query = query.filter(Album.name.contains(search))
+
+    albums = query.all()
 
     return templates.TemplateResponse(
         request,
         "albums.html",
         {
-            "albums": albums
+            "albums": albums,
+            "search": search
         }
     )
 
