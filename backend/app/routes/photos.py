@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, UploadFile, File, HTTPException
+from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from app.database import get_db
@@ -101,8 +102,14 @@ async def upload_photo(
         logger.exception("Thumbnail generation failed for %s", new_filename)
         # not fatal - it'll be generated on first view instead
 
-    #AI TAGGING
-    tags_str = generate_ai_tags(new_path)
+    # AI TAGGING - generate_ai_tags runs a BLIP model on CPU (~1.5-10s,
+    # more on first call while the model loads). It's a synchronous, CPU-
+    # bound call, so running it inline here blocked the whole async event
+    # loop for that long on every single upload - not just this request,
+    # every other page/API call on the server stalled too. run_in_threadpool
+    # moves it off the event loop so the rest of the app stays responsive
+    # while it runs.
+    tags_str = await run_in_threadpool(generate_ai_tags, new_path)
 
     # Save to DB
     photo = Photo(
