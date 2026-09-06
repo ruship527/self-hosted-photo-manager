@@ -203,6 +203,52 @@
             margin-top: 35px;
         }
 
+        .rename-row {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin-bottom: 4px;
+        }
+
+        .error-box {
+            background: color-mix(in srgb, var(--danger) 12%, var(--surface));
+            border: 1px solid var(--danger);
+            color: var(--danger);
+            padding: 12px 16px;
+            border-radius: 10px;
+            margin-bottom: 16px;
+            font-weight: 600;
+        }
+
+        .rename-row input {
+            padding: 8px 12px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            background: var(--surface);
+            color: var(--text);
+            font-size: 18px;
+            font-weight: 700;
+            width: 320px;
+        }
+
+        .card-select {
+            position: relative;
+        }
+
+        .card-select input[type="checkbox"] {
+            position: absolute;
+            top: 8px;
+            left: 8px;
+            z-index: 2;
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+        }
+
+        .save-photos-btn {
+            margin-top: 20px;
+        }
+
         .modal {
             display: none;
             position: fixed;
@@ -331,7 +377,16 @@
     </div>
 </nav>
 
-<h1>{{ album.name }}</h1>
+{% if error %}
+<div class="error-box">{{ error }}</div>
+{% endif %}
+
+<div class="rename-row">
+    <form action="/albums/{{ album.id }}/rename" method="post">
+        <input type="text" name="name" value="{{ album.name }}" required>
+        <button type="submit">Rename</button>
+    </form>
+</div>
 
 <div class="section">
     <h2>Photos in this album</h2>
@@ -343,7 +398,8 @@
                  onclick="openModal('/uploads/photos/{{ photo.saved_filename }}')">
             <p>{{ photo.saved_filename }}</p>
 
-            <form action="/albums/{{ album.id }}/remove/{{ photo.id }}" method="post">
+            <form action="/albums/{{ album.id }}/remove/{{ photo.id }}" method="post"
+                  onsubmit="return confirm('Remove this photo from the album?');">
                 <button class="remove" type="submit">Remove</button>
             </form>
         </div>
@@ -354,21 +410,27 @@
 <div class="section">
     <h2>Add photos</h2>
 
-    <div class="gallery">
-        {% for photo in photos %}
-            {% if photo.id not in album_photo_ids %}
-            <div class="card">
-                <img src="/uploads/thumbnails/{{ photo.saved_filename }}" loading="lazy"
-                     onclick="openModal('/uploads/photos/{{ photo.saved_filename }}')">
-                <p>{{ photo.saved_filename }}</p>
+    <!-- Check off any number of photos, then one Save adds them all at
+         once - previously each photo had its own "Add to Album" button,
+         submitting (and reloading the page) one at a time. -->
+    <form action="/albums/{{ album.id }}/add-photos" method="post">
+        <div class="gallery">
+            {% for photo in photos %}
+                {% if photo.id not in album_photo_ids %}
+                <div class="card">
+                    <div class="card-select">
+                        <input type="checkbox" name="photo_ids" value="{{ photo.id }}">
+                        <img src="/uploads/thumbnails/{{ photo.saved_filename }}" loading="lazy"
+                             onclick="openModal('/uploads/photos/{{ photo.saved_filename }}')">
+                    </div>
+                    <p>{{ photo.saved_filename }}</p>
+                </div>
+                {% endif %}
+            {% endfor %}
+        </div>
 
-                <form action="/albums/{{ album.id }}/add/{{ photo.id }}" method="post">
-                    <button type="submit">Add to Album</button>
-                </form>
-            </div>
-            {% endif %}
-        {% endfor %}
-    </div>
+        <button type="submit" class="save-photos-btn">Save</button>
+    </form>
 </div>
 
 <div id="imageModal" class="modal">
