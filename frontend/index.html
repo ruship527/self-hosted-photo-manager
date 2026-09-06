@@ -1,219 +1,456 @@
 <!DOCTYPE html>
 <html>
 <head>
+    <script>
+        // Applied before first paint so there's no flash of the wrong theme.
+        if (localStorage.getItem("theme") === "dark") {
+            document.documentElement.setAttribute("data-theme", "dark");
+        }
+    </script>
     <title>Homelab Photo App</title>
     <style>
-        .navbar {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    background: #111827;
-    color: white;
-    padding: 14px 24px;
-    border-radius: 12px;
-    margin-bottom: 25px;
-}
-
-#dropZone {
-    border: 2px dashed #2563eb;
-    padding: 30px;
-    text-align: center;
-    border-radius: 12px;
-    margin: 20px 0;
-    color: #2563eb;
-    font-weight: bold;
-}
-
-#dropZone.dragover {
-    background: #eff6ff;
-}
-
-.logo {
-    font-size: 20px;
-    font-weight: bold;
-}
-
-.nav-links a {
-    color: white;
-    text-decoration: none;
-    margin-left: 20px;
-    font-weight: bold;
-}
-
-.nav-links a {
-    color: white;
-    text-decoration: none;
-    margin-left: 20px;
-    font-weight: bold;
-    padding: 6px 10px;
-    border-radius: 6px;
-}
-
-.nav-links a:hover {
-    background: #374151;
-}
-
-.nav-links a.active {
-    background: #2563eb;
-}
-
-.nav-links a:hover {
-    text-decoration: underline;
-}
-        body {
-            font-family: Arial, sans-serif;
-            padding: 30px;
+        :root {
+            --bg: #f3f4f6;
+            --surface: #ffffff;
+            --text: #111827;
+            --text-muted: #6b7280;
+            --border: #e5e7eb;
+            --chrome-bg: #111827;
+            --chrome-text: #ffffff;
+            --primary: #2563eb;
+            --primary-hover: #1e40af;
+            --danger: #dc2626;
+            --danger-hover: #b91c1c;
+            --shadow: 0 1px 3px rgba(0,0,0,0.08);
+            --shadow-hover: 0 10px 24px rgba(0,0,0,0.14);
         }
 
+        [data-theme="dark"] {
+            --bg: #0e1014;
+            --surface: #1a1d23;
+            --text: #e8eaed;
+            --text-muted: #9aa1ab;
+            --border: #2c3038;
+            --chrome-bg: #05070a;
+            --chrome-text: #e8eaed;
+            --primary: #3b82f6;
+            --primary-hover: #60a5fa;
+            --danger: #ef4444;
+            --danger-hover: #f87171;
+            --shadow: 0 1px 3px rgba(0,0,0,0.5);
+            --shadow-hover: 0 10px 28px rgba(0,0,0,0.6);
+        }
+
+        *, *::before, *::after {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            padding: 30px;
+            background: var(--bg);
+            color: var(--text);
+            transition: background-color 150ms ease-out, color 150ms ease-out;
+        }
+
+        .navbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--chrome-bg);
+            color: var(--chrome-text);
+            padding: 14px 24px;
+            border-radius: 12px;
+            margin-bottom: 25px;
+        }
+
+        .logo {
+            font-size: 20px;
+            font-weight: bold;
+        }
+
+        .nav-links {
+            display: flex;
+            align-items: center;
+        }
+
+        .nav-links a {
+            color: var(--chrome-text);
+            text-decoration: none;
+            margin-left: 20px;
+            font-weight: bold;
+            padding: 6px 10px;
+            border-radius: 6px;
+        }
+
+        .nav-links a.active {
+            background: var(--primary);
+        }
+
+        .theme-toggle {
+            width: 34px;
+            height: 34px;
+            margin-left: 20px;
+            margin-top: 0;
+            padding: 0;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.1);
+            color: var(--chrome-text);
+            font-size: 13px;
+            font-weight: 700;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .theme-toggle:hover {
+            background: rgba(255,255,255,0.2);
+        }
+
+        @media (hover: hover) and (pointer: fine) {
+            .nav-links a,
+            .theme-toggle {
+                transition: background-color 120ms ease-out;
+            }
+        }
+
+        #dropZone {
+            display: block;
+            border: 2px dashed var(--primary);
+            padding: 30px;
+            text-align: center;
+            border-radius: 12px;
+            margin: 20px 0;
+            color: var(--primary);
+            cursor: pointer;
+            transition: background-color 150ms ease-out, border-color 150ms ease-out;
+        }
+
+        @media (hover: hover) and (pointer: fine) {
+            #dropZone:hover {
+                background: color-mix(in srgb, var(--primary) 6%, transparent);
+            }
+        }
+
+        #dropZone.dragover {
+            background: color-mix(in srgb, var(--primary) 12%, transparent);
+        }
+
+        #dropZone p {
+            margin: 0;
+            font-weight: 600;
+        }
+
+        #dropZone p span {
+            font-weight: 400;
+            color: var(--text-muted);
+        }
+
+        /* --- Photo grid: grouped by day (Immich-style), each day's own --- */
+        /* --- CSS-columns masonry so photos keep their natural aspect.  --- */
         .gallery {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-            gap: 20px;
-            margin-top: 30px;
+            margin-top: 10px;
+            transition: opacity 150ms ease-out;
+        }
+
+        .date-heading {
+            font-size: 15px;
+            font-weight: 700;
+            color: var(--text-muted);
+            margin: 28px 0 12px;
+        }
+
+        .date-heading:first-child {
+            margin-top: 10px;
+        }
+
+        .photo-grid {
+            columns: 5 220px;
+            column-gap: 16px;
         }
 
         .card {
-            border: 1px solid #ddd;
-            padding: 10px;
-            border-radius: 10px;
+            display: inline-block;
+            width: 100%;
+            break-inside: avoid;
+            margin: 0 0 16px;
+            background: var(--surface);
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: var(--shadow);
+            transition: transform 180ms ease-out, box-shadow 180ms ease-out;
+        }
+
+        @media (hover: hover) and (pointer: fine) {
+            .card:hover {
+                transform: translateY(-3px);
+                box-shadow: var(--shadow-hover);
+            }
+        }
+
+        .card-media {
+            position: relative;
+        }
+
+        .card-media .select-photo {
+            position: absolute;
+            top: 8px;
+            left: 8px;
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
         }
 
         .card img {
             width: 100%;
-            height: 180px;
-            object-fit: cover;
-            border-radius: 8px;
+            height: auto;
             display: block;
+            cursor: pointer;
         }
-        .card {
-            min-height: 260px;
+
+        .card-body {
+            padding: 10px 12px 12px;
+            color: var(--text);
+        }
+
+        .card-body p {
+            margin: 4px 0;
+        }
+
+        .card-actions {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 10px;
         }
 
         button {
             margin-top: 10px;
+            padding: 8px 14px;
+            border: none;
+            border-radius: 8px;
+            background: var(--primary);
+            color: white;
+            font-weight: 600;
             cursor: pointer;
+            transition: transform 120ms ease-out, background-color 150ms ease-out;
+        }
+
+        button:hover {
+            background: var(--primary-hover);
+        }
+
+        button:active {
+            transform: scale(0.97);
+        }
+
+        .delete-photo-btn,
+        .delete-btn {
+            background: var(--danger);
+        }
+
+        .delete-photo-btn:hover,
+        .delete-btn:hover {
+            background: var(--danger-hover);
         }
 
         .controls {
             margin-bottom: 20px;
         }
 
-        input[type="text"] {
+        input[type="text"],
+        input[type="date"],
+        input[type="file"] {
             margin-top: 10px;
-            padding: 5px;
+            padding: 6px 10px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            background: var(--surface);
+            color: var(--text);
+        }
+
+        input[type="text"] {
             width: 250px;
         }
+
+        .stats-box {
+            margin-bottom: 20px;
+            padding: 15px;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            background: var(--surface);
+            color: var(--text);
+        }
+
+        /* --- Full-screen lightbox (inspired by Immich's photo viewer): --- */
+        /* --- dark stage, icon toolbar, edge arrows, bottom caption.    --- */
         .modal {
-    display: none;
-    position: fixed;
-    z-index: 1000;
-    left: 0;
-    top: 0;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(0,0,0,0.9);
-    justify-content: center;
-    align-items: center;
-}
+            display: none;
+            position: fixed;
+            z-index: 999;
+            inset: 0;
+            justify-content: center;
+            align-items: center;
+            opacity: 0;
+            transition: opacity 200ms ease-out;
+        }
 
-.modal img {
-    max-width: 90%;
-    max-height: 90%;
-    width: auto;
-    height: auto;
-    object-fit: contain;
-}
+        .modal.show {
+            opacity: 1;
+        }
 
-.close {
-    color: white;
-    font-size: 40px;
-    position: absolute;
-    top: 20px;
-    right: 40px;
-    cursor: pointer;
-}
-.card div {
-    display: flex;
-    justify-content: space-between;
-    margin-top: 10px;
-}
+        .lightbox {
+            background: rgba(0,0,0,0.95);
+        }
 
-.card button {
-    cursor: pointer;
-}
+        .lightbox-img {
+            max-width: 92vw;
+            max-height: 82vh;
+            object-fit: contain;
+            border-radius: 4px;
+            transform: scale(0.97);
+            opacity: 0;
+            transition: transform 220ms ease-out, opacity 220ms ease-out;
+        }
 
-.modal {
-    display: none;
-    position: fixed;
-    z-index: 999;
-    inset: 0;
-    background: rgba(0,0,0,0.75);
-    justify-content: center;
-    align-items: center;
-}
+        .modal.show .lightbox-img {
+            transform: scale(1);
+            opacity: 1;
+        }
 
-.modal-content {
-    background: white;
-    padding: 20px;
-    border-radius: 14px;
-    width: 90%;
-    max-width: 500px;
-    text-align: center;
-}
+        .lightbox-close,
+        .lightbox-icon-btn,
+        .lightbox-nav {
+            background: rgba(255,255,255,0.12);
+            color: white;
+            border: none;
+            border-radius: 999px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            text-decoration: none;
+            margin-top: 0;
+        }
 
-.details-img {
-    max-width: 100%;
-    max-height: 350px;
-    object-fit: contain;
-    border-radius: 10px;
-}
+        /* .lightbox-icon-btn deliberately stays non-absolute: it's a flex
+           item inside .lightbox-toolbar (which is what's positioned). Giving
+           it position:absolute too - as close/nav correctly have - pulled it
+           out of that flex layout, so Download and Delete both collapsed to
+           the same static position instead of sitting side by side. */
+        .lightbox-close,
+        .lightbox-nav {
+            position: absolute;
+        }
 
-.close {
-    float: right;
-    font-size: 28px;
-    cursor: pointer;
-}
+        .lightbox-close:hover,
+        .lightbox-icon-btn:hover {
+            background: rgba(255,255,255,0.25);
+        }
 
-.btn {
-    display: inline-block;
-    padding: 10px 14px;
-    background: #2563eb;
-    color: white;
-    text-decoration: none;
-    border-radius: 8px;
-    margin: 8px;
-}
+        .lightbox-danger:hover {
+            background: rgba(239,68,68,0.65);
+        }
 
-.delete-btn {
-    padding: 10px 14px;
-    background: #dc2626;
-    color: white;
-    border: none;
-    border-radius: 8px;
-    cursor: pointer;
-}
+        .lightbox-close {
+            top: 20px;
+            left: 24px;
+            width: 40px;
+            height: 40px;
+            font-size: 18px;
+        }
+
+        .lightbox-toolbar {
+            position: absolute;
+            top: 20px;
+            right: 24px;
+            display: flex;
+            gap: 10px;
+        }
+
+        .lightbox-icon-btn {
+            height: 40px;
+            padding: 0 16px;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .lightbox-nav {
+            top: 50%;
+            transform: translateY(-50%);
+            width: 48px;
+            height: 48px;
+            font-size: 24px;
+        }
+
+        .lightbox-prev {
+            left: 20px;
+        }
+
+        .lightbox-next {
+            right: 20px;
+        }
+
+        .lightbox-caption {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 20px 30px 24px;
+            background: linear-gradient(to top, rgba(0,0,0,0.7), transparent);
+            color: white;
+            text-align: center;
+        }
+
+        .lightbox-caption strong {
+            display: block;
+            margin-bottom: 4px;
+            font-size: 15px;
+            word-break: break-all;
+        }
+
+        .lightbox-caption span {
+            display: inline-block;
+            font-size: 13px;
+            color: rgba(255,255,255,0.75);
+            margin: 0 8px;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            body,
+            .modal,
+            .lightbox-img,
+            #dropZone,
+            .gallery,
+            .card,
+            button,
+            .nav-links a,
+            .theme-toggle {
+                transition: none;
+            }
+        }
     </style>
 </head>
 
 <body>
     <nav class="navbar">
-    <div class="logo">Homelab Drive</div>
+        <div class="logo">Homelab Drive</div>
 
-    <div class="nav-links">
-        <a href="/gallery" class="active">Photos</a>
-        <a href="/files-page">Files</a>
-        <a href="/albums">Albums</a>
-    </div>
-</nav>
+        <div class="nav-links">
+            <a href="/gallery" class="active">Photos</a>
+            <a href="/files-page">Files</a>
+            <a href="/albums">Albums</a>
+            <button id="themeToggle" class="theme-toggle" type="button" onclick="toggleTheme()" aria-label="Toggle dark mode"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg></button>
+        </div>
+    </nav>
     <h1>Photos</h1>
 
-    <div id="dropZone">
-    Drop photos or files here to upload
-</div>
+    <label id="dropZone" for="fileInput">
+        <input type="file" id="fileInput" multiple hidden>
+        <p><strong>Click to upload</strong> <span>or drag photos and files here</span></p>
+    </label>
 
     <div class="controls">
-        <input type="file" id="fileInput">
-        <button onclick="uploadPhoto()">Upload</button>   <button onclick="downloadSelected()">Download Selected</button> <button onclick="deleteSelected()">Delete Selected</button>
+        <button onclick="downloadSelected()">Download Selected</button> <button onclick="deleteSelected()">Delete Selected</button>
         <p id="downloadStatus"></p>
 
 
@@ -231,44 +468,112 @@
         <button onclick="clearFilters()">Clear</button>
     </div>
 
-    <div id="statsBox" style="margin-bottom:20px; padding:15px; border:1px solid #ddd; border-radius:10px;">
-    <h3>Storage Stats</h3>
-    <p id="statsContent">Loading...</p>
+    <div class="stats-box">
+        <h3>Storage Stats</h3>
+        <p id="statsContent">Loading...</p>
     </div>
 
     <div class="gallery" id="gallery"></div>
-    <div id="imageModal" class="modal" onclick="closeModal()">
-        <span class="close">&times;</span>
-        <img id="modalImage">
+
+    <div id="detailsModal" class="modal lightbox">
+        <button class="lightbox-close" onclick="closePhotoDetails()" aria-label="Close">✕</button>
+
+        <button id="prevPhotoBtn" class="lightbox-nav lightbox-prev" onclick="showPrevPhoto()" aria-label="Previous photo">‹</button>
+        <button id="nextPhotoBtn" class="lightbox-nav lightbox-next" onclick="showNextPhoto()" aria-label="Next photo">›</button>
+
+        <div class="lightbox-toolbar">
+            <a id="detailsDownload" class="lightbox-icon-btn" download aria-label="Download">Download</a>
+            <button id="detailsDelete" class="lightbox-icon-btn lightbox-danger" aria-label="Delete">Delete</button>
+        </div>
+
+        <img id="detailsImage" class="lightbox-img">
+
+        <div class="lightbox-caption">
+            <strong id="detailsFilename"></strong>
+            <span id="detailsTaken"></span>
+            <span>Tags: <span id="detailsTags"></span></span>
+        </div>
     </div>
-
-    <div id="detailsModal" class="modal">
-    <div class="modal-content">
-        <span class="close" onclick="closePhotoDetails()">×</span>
-
-        <img id="detailsImage" class="details-img">
-
-        <h3 id="detailsFilename"></h3>
-
-        <p><b>Taken:</b> <span id="detailsTaken"></span></p>
-        <p><b>Uploaded:</b> <span id="detailsUploaded"></span></p>
-        <p><b>Tags:</b> <span id="detailsTags"></span></p>
-
-        <a id="detailsDownload" class="btn" download>Download</a>
-        <button id="detailsDelete" class="delete-btn">Delete</button>
-    </div>
-</div>
 
     <script>
     const API_URL = "";
+    let currentPhotos = [];
+    let currentPhotoIndex = -1;
 
-    function openModal(imageUrl) {
-        document.getElementById("modalImage").src = imageUrl;
-        document.getElementById("imageModal").style.display = "flex";
+    function toggleTheme() {
+        const root = document.documentElement;
+        const isDark = root.getAttribute("data-theme") === "dark";
+
+        if (isDark) {
+            root.removeAttribute("data-theme");
+            localStorage.setItem("theme", "light");
+        } else {
+            root.setAttribute("data-theme", "dark");
+            localStorage.setItem("theme", "dark");
+        }
+
+        updateThemeToggleLabel();
     }
 
-    function closeModal() {
-        document.getElementById("imageModal").style.display = "none";
+    // Hand-drawn SVG icons - no emoji, no font/platform rendering differences.
+    const MOON_ICON = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>';
+    const SUN_ICON = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>';
+
+    function updateThemeToggleLabel() {
+        const btn = document.getElementById("themeToggle");
+        if (!btn) return;
+        const isDark = document.documentElement.getAttribute("data-theme") === "dark";
+        // Shows the icon for the mode a click will switch TO.
+        btn.innerHTML = isDark ? SUN_ICON : MOON_ICON;
+    }
+
+    // Groups by the calendar day of taken_date (falling back to "Unknown
+    // date") so consecutive same-day photos render under one heading -
+    // same idea as Immich's day-grouped timeline.
+    function dateKey(dateStr) {
+        if (!dateStr || dateStr === "Unknown") return "unknown";
+        return dateStr.slice(0, 10);
+    }
+
+    function formatDateHeading(dateStr) {
+        if (!dateStr || dateStr === "Unknown") return "Unknown date";
+        const d = new Date(dateStr.replace(" ", "T"));
+        if (isNaN(d)) return dateStr;
+        return d.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric", year: "numeric" });
+    }
+
+    function buildPhotoCard(photo, index) {
+        const card = document.createElement("div");
+        card.className = "card";
+
+        card.innerHTML = `
+            <div class="card-media">
+                <input type="checkbox" value="${photo.filename}" class="select-photo">
+                <img class="photo-img" src="${API_URL}${photo.thumbnail_url || photo.url}" loading="lazy">
+            </div>
+
+            <div class="card-body">
+                <p><b>Filename:</b> ${photo.filename}</p>
+                <p><b>Taken:</b> ${photo.taken_date || "Unknown"}</p>
+
+                <div class="card-actions">
+                    <a href="${API_URL}${photo.url}" download>
+                        <button>Download</button>
+                    </a>
+                    <button class="delete-photo-btn">Delete</button>
+                </div>
+            </div>
+        `;
+
+        card.querySelector(".photo-img").addEventListener("click", function () {
+            openPhotoDetails(index);
+        });
+
+        card.querySelector(".delete-photo-btn").addEventListener("click", function () {
+            deletePhoto(photo.filename);
+        });
+
+        return card;
     }
 
     async function fetchPhotos() {
@@ -280,48 +585,35 @@
         );
 
         const photos = await response.json();
+        currentPhotos = photos;
 
         const gallery = document.getElementById("gallery");
+        gallery.style.opacity = "0";
         gallery.innerHTML = "";
 
-        photos.forEach(photo => {
-            const card = document.createElement("div");
-            card.className = "card";
+        let openGroupKey = null;
+        let openGrid = null;
 
-            card.innerHTML = `
-                <input type="checkbox" value="${photo.filename}" class="select-photo">
+        photos.forEach((photo, index) => {
+            const key = dateKey(photo.taken_date);
 
-                <img class="photo-img" src="${API_URL}${photo.thumbnail_url || photo.url}" loading="lazy">
+            if (key !== openGroupKey) {
+                openGroupKey = key;
 
-                <p><b>Filename:</b> ${photo.filename}</p>
-                <p><b>Taken:</b> ${photo.taken_date || "Unknown"}</p>
+                const heading = document.createElement("h3");
+                heading.className = "date-heading";
+                heading.textContent = formatDateHeading(photo.taken_date);
+                gallery.appendChild(heading);
 
-                <div>
-                    <a href="${API_URL}${photo.url}" download>
-                        <button>Download</button>
-                    </a>
-                    <button class="delete-photo-btn">Delete</button>
-                </div>
-            `;
+                openGrid = document.createElement("div");
+                openGrid.className = "photo-grid";
+                gallery.appendChild(openGrid);
+            }
 
-            const img = card.querySelector(".photo-img");
-            img.addEventListener("click", function () {
-                openPhotoDetails(
-                    photo.filename,
-                    API_URL + photo.url,
-                    photo.taken_date,
-                    photo.upload_date,
-                    photo.tags || []
-                );
-            });
-
-            const deleteBtn = card.querySelector(".delete-photo-btn");
-            deleteBtn.addEventListener("click", function () {
-                deletePhoto(photo.filename);
-            });
-
-            gallery.appendChild(card);
+            openGrid.appendChild(buildPhotoCard(photo, index));
         });
+
+        requestAnimationFrame(() => { gallery.style.opacity = "1"; });
     }
 
     function clearFilters() {
@@ -331,52 +623,58 @@
     }
 
     async function loadStats() {
-    const res = await fetch(`${API_URL}/stats`);
-    const data = await res.json();
+        const res = await fetch(`${API_URL}/stats`);
+        const data = await res.json();
 
-    const mb = (data.total_size / (1024 * 1024)).toFixed(2);
+        const mb = (data.total_size / (1024 * 1024)).toFixed(2);
 
-    document.getElementById("statsContent").innerHTML = `
-        Photos: ${data.total_photos}<br>
-        Files: ${data.total_files}<br>
-        Storage Used: ${mb} MB<br>
-        Largest File: ${data.largest_file.name || "None"}
-    `;
-}
+        document.getElementById("statsContent").innerHTML = `
+            Photos: ${data.total_photos}<br>
+            Files: ${data.total_files}<br>
+            Storage Used: ${mb} MB<br>
+            Largest File: ${data.largest_file.name || "None"}
+        `;
+    }
 
-    async function uploadPhoto() {
-        const input = document.getElementById("fileInput");
+    // Shared by both the click-to-upload file input and drag-and-drop -
+    // previously each had its own copy, and only the drag-and-drop path
+    // supported multiple files or showed upload progress.
+    async function handleFiles(files) {
+        if (!files || files.length === 0) return;
+
         const status = document.getElementById("status");
-        const file = input.files[0];
-
-        if (!file) {
-            alert("Choose a photo first");
-            return;
-        }
-
-        const formData = new FormData();
-        formData.append("file", file);
+        const progress = document.getElementById("uploadProgress");
 
         status.textContent = "Uploading...";
         document.body.style.cursor = "wait";
+        progress.style.display = "block";
+        progress.value = 0;
 
-        const response = await fetch(`${API_URL}/photos/upload`, {
-            method: "POST",
-            body: formData
-        });
+        const total = files.length;
+        let duplicates = 0;
 
-        const result = await response.json();
+        for (let i = 0; i < total; i++) {
+            const formData = new FormData();
+            formData.append("file", files[i]);
 
-        document.body.style.cursor = "default";
-        input.value = "";
+            const response = await fetch(`${API_URL}/photos/upload`, {
+                method: "POST",
+                body: formData
+            });
 
-        if (result.message === "Duplicate image") {
-            status.textContent = `Duplicate photo. Already saved as ${result.filename}`;
-        } else {
-            status.textContent = "Upload successful.";
+            const result = await response.json().catch(() => ({}));
+            if (result.message === "Duplicate image") duplicates++;
+
+            progress.value = Math.round(((i + 1) / total) * 100);
         }
 
+        status.textContent = duplicates > 0
+            ? `Upload complete. ${duplicates} duplicate${duplicates > 1 ? "s" : ""} skipped.`
+            : "Upload complete.";
+        document.body.style.cursor = "default";
+
         await fetchPhotos();
+        progress.style.display = "none";
     }
 
     async function deletePhoto(filename) {
@@ -444,74 +742,95 @@
         document.body.style.cursor = "default";
     }
 
-    function openPhotoDetails(filename, url, takenDate, uploadDate, tags) {
-        document.getElementById("detailsImage").src = url;
-        document.getElementById("detailsFilename").innerText = filename;
-        document.getElementById("detailsTaken").innerText = takenDate || "Unknown";
-        document.getElementById("detailsUploaded").innerText = uploadDate || "Unknown";
+    function openPhotoDetails(index) {
+        const photo = currentPhotos[index];
+        if (!photo) return;
+
+        currentPhotoIndex = index;
+
+        document.getElementById("detailsImage").src = API_URL + photo.url;
+        document.getElementById("detailsFilename").innerText = photo.filename;
+        document.getElementById("detailsTaken").innerText = photo.taken_date || "Unknown";
 
         document.getElementById("detailsTags").innerText =
-            tags && tags.length > 0 ? tags.join(", ") : "No tags";
+            photo.tags && photo.tags.length > 0 ? photo.tags.join(", ") : "No tags";
 
-        document.getElementById("detailsDownload").href = url;
-        document.getElementById("detailsDownload").download = filename;
+        document.getElementById("detailsDownload").href = API_URL + photo.url;
+        document.getElementById("detailsDownload").download = photo.filename;
 
         document.getElementById("detailsDelete").onclick = function () {
-            deletePhoto(filename);
+            deletePhoto(photo.filename);
             closePhotoDetails();
-    };
+        };
 
-    document.getElementById("detailsModal").style.display = "flex";
-}
+        document.getElementById("prevPhotoBtn").style.visibility = index > 0 ? "visible" : "hidden";
+        document.getElementById("nextPhotoBtn").style.visibility = index < currentPhotos.length - 1 ? "visible" : "hidden";
+
+        const detailsModal = document.getElementById("detailsModal");
+        detailsModal.style.display = "flex";
+        requestAnimationFrame(() => requestAnimationFrame(() => detailsModal.classList.add("show")));
+    }
+
+    function showPrevPhoto() {
+        if (currentPhotoIndex > 0) openPhotoDetails(currentPhotoIndex - 1);
+    }
+
+    function showNextPhoto() {
+        if (currentPhotoIndex < currentPhotos.length - 1) openPhotoDetails(currentPhotoIndex + 1);
+    }
 
     function closePhotoDetails() {
-        document.getElementById("detailsModal").style.display = "none";
+        const detailsModal = document.getElementById("detailsModal");
+        detailsModal.classList.remove("show");
+        setTimeout(() => { detailsModal.style.display = "none"; }, 200);
     }
+
+    // Bug fix: clicking the dark backdrop, or pressing Escape, now closes
+    // the photo-details modal - previously only the small "x" worked, so
+    // there was no way to back out once a photo was open.
+    document.getElementById("detailsModal").addEventListener("click", function (e) {
+        if (e.target === this) closePhotoDetails();
+    });
+
+    document.addEventListener("keydown", function (e) {
+        if (document.getElementById("detailsModal").style.display !== "flex") return;
+
+        if (e.key === "Escape") closePhotoDetails();
+        if (e.key === "ArrowLeft") showPrevPhoto();
+        if (e.key === "ArrowRight") showNextPhoto();
+    });
 
     const dropZone = document.getElementById("dropZone");
+    const fileInput = document.getElementById("fileInput");
+
+    fileInput.addEventListener("change", function () {
+        handleFiles(this.files);
+        this.value = "";
+    });
+
+    // Bug fix: "dragover" was only ever removed, never added, so the
+    // drop zone never actually showed drag feedback. Wire up the enter/leave.
+    ["dragenter", "dragover"].forEach(evt => {
+        dropZone.addEventListener(evt, function (e) {
+            e.preventDefault();
+            dropZone.classList.add("dragover");
+        });
+    });
+
+    dropZone.addEventListener("dragleave", function (e) {
+        e.preventDefault();
+        dropZone.classList.remove("dragover");
+    });
 
     dropZone.addEventListener("drop", async function (e) {
-    e.preventDefault();
-    dropZone.classList.remove("dragover");
+        e.preventDefault();
+        dropZone.classList.remove("dragover");
+        await handleFiles(e.dataTransfer.files);
+    });
 
-    const files = e.dataTransfer.files;
-
-    const status = document.getElementById("status");
-    const progress = document.getElementById("uploadProgress");
-
-    status.textContent = "Uploading...";
-    document.body.style.cursor = "wait";
-
-    progress.style.display = "block";
-    progress.value = 0;
-
-    const total = files.length;
-
-    for (let i = 0; i < total; i++) {
-        const file = files[i];
-
-        const formData = new FormData();
-        formData.append("file", file);
-
-        await fetch(`${API_URL}/photos/upload`, {
-            method: "POST",
-            body: formData
-        });
-
-        const percent = Math.round(((i + 1) / total) * 100);
-        progress.value = percent;
-    }
-
-    status.textContent = "Upload complete.";
-    document.body.style.cursor = "default";
-
-    await fetchPhotos();
-
-    progress.style.display = "none";
-});
-
-fetchPhotos();
-loadStats();
-</script>
+    updateThemeToggleLabel();
+    fetchPhotos();
+    loadStats();
+    </script>
 </body>
 </html>

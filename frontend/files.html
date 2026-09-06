@@ -1,19 +1,61 @@
 <!DOCTYPE html>
 <html>
 <head>
+    <script>
+        if (localStorage.getItem("theme") === "dark") {
+            document.documentElement.setAttribute("data-theme", "dark");
+        }
+    </script>
     <title>Files</title>
     <style>
+        :root {
+            --bg: #f3f4f6;
+            --surface: #ffffff;
+            --text: #111827;
+            --text-muted: #6b7280;
+            --border: #e5e7eb;
+            --chrome-bg: #111827;
+            --chrome-text: #ffffff;
+            --primary: #2563eb;
+            --primary-hover: #1e40af;
+            --danger: #dc2626;
+            --danger-hover: #b91c1c;
+            --overlay: rgba(0,0,0,0.9);
+        }
+
+        [data-theme="dark"] {
+            --bg: #0e1014;
+            --surface: #1a1d23;
+            --text: #e8eaed;
+            --text-muted: #9aa1ab;
+            --border: #2c3038;
+            --chrome-bg: #05070a;
+            --chrome-text: #e8eaed;
+            --primary: #3b82f6;
+            --primary-hover: #60a5fa;
+            --danger: #ef4444;
+            --danger-hover: #f87171;
+            --overlay: rgba(0,0,0,0.95);
+        }
+
+        *, *::before, *::after {
+            box-sizing: border-box;
+        }
+
         body {
-            font-family: Arial, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             padding: 30px;
+            background: var(--bg);
+            color: var(--text);
+            transition: background-color 150ms ease-out, color 150ms ease-out;
         }
 
         .navbar {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            background: #111827;
-            color: white;
+            background: var(--chrome-bg);
+            color: var(--chrome-text);
             padding: 14px 24px;
             border-radius: 12px;
             margin-bottom: 25px;
@@ -24,8 +66,13 @@
             font-weight: bold;
         }
 
+        .nav-links {
+            display: flex;
+            align-items: center;
+        }
+
         .nav-links a {
-            color: white;
+            color: var(--chrome-text);
             text-decoration: none;
             margin-left: 20px;
             font-weight: bold;
@@ -33,12 +80,35 @@
             border-radius: 6px;
         }
 
-        .nav-links a:hover {
-            background: #374151;
+        .nav-links a.active {
+            background: var(--primary);
         }
 
-        .nav-links a.active {
-            background: #2563eb;
+        .theme-toggle {
+            width: 34px;
+            height: 34px;
+            margin-left: 20px;
+            margin-top: 0;
+            padding: 0;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.1);
+            color: var(--chrome-text);
+            font-size: 13px;
+            font-weight: 700;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .theme-toggle:hover {
+            background: rgba(255,255,255,0.2);
+        }
+
+        @media (hover: hover) and (pointer: fine) {
+            .nav-links a,
+            .theme-toggle {
+                transition: background-color 120ms ease-out;
+            }
         }
 
         ul {
@@ -47,7 +117,8 @@
         }
 
         li {
-            background: #f3f4f6;
+            background: var(--surface);
+            border: 1px solid var(--border);
             padding: 10px;
             margin-bottom: 10px;
             border-radius: 8px;
@@ -56,27 +127,57 @@
             align-items: center;
         }
 
+        input[type="file"] {
+            color: var(--text);
+        }
+
         button {
             cursor: pointer;
             margin-left: 8px;
+            padding: 8px 14px;
+            border: none;
+            border-radius: 8px;
+            background: var(--primary);
+            color: white;
+            font-weight: 600;
+            transition: transform 120ms ease-out, background-color 150ms ease-out;
+        }
+
+        button:hover {
+            background: var(--primary-hover);
+        }
+
+        button:active {
+            transform: scale(0.97);
         }
 
         .modal {
             display: none;
             position: fixed;
             z-index: 1000;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0,0,0,0.9);
+            inset: 0;
+            background: var(--overlay);
             justify-content: center;
             align-items: center;
+            opacity: 0;
+            transition: opacity 200ms ease-out;
+        }
+
+        .modal.show {
+            opacity: 1;
         }
 
         #modalContent {
             width: 90%;
             height: 90%;
+            transform: scale(0.96);
+            opacity: 0;
+            transition: transform 220ms ease-out, opacity 220ms ease-out;
+        }
+
+        .modal.show #modalContent {
+            transform: scale(1);
+            opacity: 1;
         }
 
         #modalContent iframe,
@@ -97,15 +198,21 @@
             cursor: pointer;
         }
 
-        .card div {
-    display: flex;
-    justify-content: space-between;
-    margin-top: 10px;
-}
+        ul#fileList {
+            transition: opacity 150ms ease-out;
+        }
 
-.card button {
-    cursor: pointer;
-}
+        @media (prefers-reduced-motion: reduce) {
+            body,
+            .modal,
+            #modalContent,
+            ul#fileList,
+            button,
+            .nav-links a,
+            .theme-toggle {
+                transition: none;
+            }
+        }
     </style>
 </head>
 
@@ -117,6 +224,7 @@
         <a href="/gallery">Photos</a>
         <a href="/files-page" class="active">Files</a>
         <a href="/albums">Albums</a>
+        <button id="themeToggle" class="theme-toggle" type="button" onclick="toggleTheme()" aria-label="Toggle dark mode"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg></button>
     </div>
 </nav>
 
@@ -133,11 +241,38 @@
     </div>
 
     <script>
+        function toggleTheme() {
+            const root = document.documentElement;
+            const isDark = root.getAttribute("data-theme") === "dark";
+
+            if (isDark) {
+                root.removeAttribute("data-theme");
+                localStorage.setItem("theme", "light");
+            } else {
+                root.setAttribute("data-theme", "dark");
+                localStorage.setItem("theme", "dark");
+            }
+
+            updateThemeToggleLabel();
+        }
+
+        // Hand-drawn SVG icons - no emoji, no font/platform rendering differences.
+        const MOON_ICON = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>';
+        const SUN_ICON = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>';
+
+        function updateThemeToggleLabel() {
+            const btn = document.getElementById("themeToggle");
+            if (!btn) return;
+            const isDark = document.documentElement.getAttribute("data-theme") === "dark";
+            btn.innerHTML = isDark ? SUN_ICON : MOON_ICON;
+        }
+
         async function loadFiles() {
             const res = await fetch("/files");
             const files = await res.json();
 
             const list = document.getElementById("fileList");
+            list.style.opacity = "0";
             list.innerHTML = "";
 
             files.forEach(f => {
@@ -156,6 +291,8 @@
 
                 list.appendChild(li);
             });
+
+            requestAnimationFrame(() => { list.style.opacity = "1"; });
         }
 
         async function uploadFile() {
@@ -195,10 +332,10 @@
 
             if (ext === "pdf") {
                 content.innerHTML = `<iframe src="${url}"></iframe>`;
-            } 
+            }
             else if (["jpg", "jpeg", "png", "gif", "webp"].includes(ext)) {
                 content.innerHTML = `<img src="${url}">`;
-            } 
+            }
             else {
                 content.innerHTML = `
                     <div style="color:white; text-align:center; margin-top:100px;">
@@ -210,15 +347,31 @@
             }
 
             modal.style.display = "flex";
+            requestAnimationFrame(() => requestAnimationFrame(() => modal.classList.add("show")));
+        }
+
+        function closeFileModalNow() {
+            const modal = document.getElementById("fileModal");
+            modal.classList.remove("show");
+            setTimeout(() => {
+                modal.style.display = "none";
+                document.getElementById("modalContent").innerHTML = "";
+            }, 200);
         }
 
         function closeFileModal(e) {
             if (e.target.id === "fileModal" || e.target.className === "close") {
-                document.getElementById("fileModal").style.display = "none";
-                document.getElementById("modalContent").innerHTML = "";
+                closeFileModalNow();
             }
         }
 
+        // Bug fix: Escape had no effect on this modal at all before - only
+        // the small "x" (or clicking the very edge of the backdrop) worked.
+        document.addEventListener("keydown", function (e) {
+            if (e.key === "Escape") closeFileModalNow();
+        });
+
+        updateThemeToggleLabel();
         loadFiles();
     </script>
 </body>
