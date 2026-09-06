@@ -812,16 +812,26 @@
     // Drag-and-drop now works anywhere on the page (no dedicated dropzone
     // box) - the overlay is just the visual cue that a drop will upload.
     //
-    // isFileDrag() guards all of this against non-upload drags - dragging a
-    // photo thumbnail (or the open lightbox image) within the page, or even
-    // just dragging selected text, both fire real dragenter/dragover/drop
-    // events on document. Thumbnails/lightbox now set draggable="false" so
-    // they shouldn't start a drag at all, but Firefox in particular has been
-    // known to populate dataTransfer.files with the image itself on an
-    // in-page image drag regardless - checking dataTransfer.types for
-    // "Files" up front is what actually stops that from reaching
-    // handleFiles() and re-uploading the photo you just meant to look at.
-    function isFileDrag(e) {
+    // Checking dataTransfer.types for "Files" (previous approach) does NOT
+    // distinguish an external OS file drop from dragging a photo thumbnail
+    // (or the open lightbox image) around within the page - browsers put a
+    // real File in dataTransfer.files for an <img> drag too, since that's
+    // the same mechanism that lets you drag a picture out to your desktop
+    // to save it. draggable="false" on the thumbnails/lightbox image stops
+    // most of that at the source, but isn't reliably honored for <img> drag
+    // in every browser, and re-uploading the photo you were just looking at
+    // was confirmed still happening.
+    //
+    // The reliable signal is *where the drag began*: an external OS drag
+    // never fires a "dragstart" in this document at all - only a drag that
+    // originated from an element on this page does. So track that directly
+    // instead of trying to read it out of dataTransfer.
+    let internalDrag = false;
+    document.addEventListener("dragstart", function () { internalDrag = true; });
+    document.addEventListener("dragend", function () { internalDrag = false; });
+
+    function isExternalFileDrag(e) {
+        if (internalDrag) return false;
         return !!(e.dataTransfer && Array.from(e.dataTransfer.types || []).includes("Files"));
     }
 
@@ -829,26 +839,26 @@
     let dragDepth = 0;
 
     document.addEventListener("dragenter", function (e) {
-        if (!isFileDrag(e)) return;
+        if (!isExternalFileDrag(e)) return;
         e.preventDefault();
         dragDepth++;
         dropOverlay.classList.add("show");
     });
 
     document.addEventListener("dragover", function (e) {
-        if (!isFileDrag(e)) return;
+        if (!isExternalFileDrag(e)) return;
         e.preventDefault();
     });
 
     document.addEventListener("dragleave", function (e) {
-        if (!isFileDrag(e)) return;
+        if (!isExternalFileDrag(e)) return;
         e.preventDefault();
         dragDepth = Math.max(0, dragDepth - 1);
         if (dragDepth === 0) dropOverlay.classList.remove("show");
     });
 
     document.addEventListener("drop", async function (e) {
-        if (!isFileDrag(e)) return;
+        if (!isExternalFileDrag(e)) return;
         e.preventDefault();
         dragDepth = 0;
         dropOverlay.classList.remove("show");
