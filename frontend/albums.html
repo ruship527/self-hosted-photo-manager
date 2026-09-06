@@ -1,16 +1,80 @@
 <!DOCTYPE html>
 <html>
 <head>
+    <script>
+        if (localStorage.getItem("theme") === "dark") {
+            document.documentElement.setAttribute("data-theme", "dark");
+        }
+    </script>
     <title>Albums</title>
     <style>
+        :root {
+            --bg: #f3f4f6;
+            --surface: #ffffff;
+            --text: #111827;
+            --text-muted: #6b7280;
+            --border: #e5e7eb;
+            --chrome-bg: #111827;
+            --chrome-text: #ffffff;
+            --primary: #2563eb;
+            --primary-hover: #1e40af;
+            --danger: #dc2626;
+            --danger-hover: #b91c1c;
+            --shadow: 0 1px 3px rgba(0,0,0,0.08);
+            --shadow-hover: 0 10px 24px rgba(0,0,0,0.14);
+        }
+
+        [data-theme="dark"] {
+            --bg: #0e1014;
+            --surface: #1a1d23;
+            --text: #e8eaed;
+            --text-muted: #9aa1ab;
+            --border: #2c3038;
+            --chrome-bg: #05070a;
+            --chrome-text: #e8eaed;
+            --primary: #3b82f6;
+            --primary-hover: #60a5fa;
+            --danger: #ef4444;
+            --danger-hover: #f87171;
+            --shadow: 0 1px 3px rgba(0,0,0,0.5);
+            --shadow-hover: 0 10px 28px rgba(0,0,0,0.6);
+        }
+
+        *, *::before, *::after {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            padding: 30px;
+            background: var(--bg);
+            color: var(--text);
+            transition: background-color 150ms ease-out, color 150ms ease-out;
+        }
+
+        .navbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--chrome-bg);
+            color: var(--chrome-text);
+            padding: 14px 24px;
+            border-radius: 12px;
+            margin-bottom: 25px;
+        }
 
         .logo {
             font-size: 20px;
             font-weight: bold;
         }
 
+        .nav-links {
+            display: flex;
+            align-items: center;
+        }
+
         .nav-links a {
-            color: white;
+            color: var(--chrome-text);
             text-decoration: none;
             margin-left: 20px;
             font-weight: bold;
@@ -18,55 +82,71 @@
             border-radius: 6px;
         }
 
-        .nav-links a:hover {
-            background: #374151;
-        }
-
         .nav-links a.active {
-            background: #2563eb;
-        }
-        body {
-            font-family: Arial, sans-serif;
-            padding: 30px;
-            background: #f3f4f6;
+            background: var(--primary);
         }
 
-        .navbar {
-            display: flex;
-            justify-content: space-between;
+        .theme-toggle {
+            width: 34px;
+            height: 34px;
+            margin-left: 20px;
+            margin-top: 0;
+            padding: 0;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.1);
+            color: var(--chrome-text);
+            font-size: 13px;
+            font-weight: 700;
+            display: inline-flex;
             align-items: center;
-            background: #111827;
-            color: white;
-            padding: 14px 24px;
-            border-radius: 12px;
-            margin-bottom: 25px;
+            justify-content: center;
         }
 
-        .navbar a {
-            color: white;
-            text-decoration: none;
-            margin-left: 15px;
+        .theme-toggle:hover {
+            background: rgba(255,255,255,0.2);
+        }
+
+        @media (hover: hover) and (pointer: fine) {
+            .nav-links a,
+            .theme-toggle {
+                transition: background-color 120ms ease-out;
+            }
         }
 
         .form-box {
-            background: white;
+            background: var(--surface);
             padding: 20px;
             border-radius: 12px;
             margin-bottom: 25px;
+            border: 1px solid var(--border);
         }
 
         input {
             padding: 10px;
             width: 250px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            background: var(--surface);
+            color: var(--text);
         }
 
         button {
             padding: 10px 16px;
-            background: #2563eb;
+            background: var(--primary);
             color: white;
             border: none;
             border-radius: 8px;
             cursor: pointer;
+            font-weight: 600;
+            transition: transform 120ms ease-out, background-color 150ms ease-out;
+        }
+
+        button:hover {
+            background: var(--primary-hover);
+        }
+
+        button:active {
+            transform: scale(0.97);
         }
 
         .albums {
@@ -76,22 +156,45 @@
         }
 
         .album-card {
-            background: white;
+            background: var(--surface);
             padding: 20px;
             border-radius: 12px;
-            border: 1px solid #ddd;
+            border: 1px solid var(--border);
+            box-shadow: var(--shadow);
+            transition: transform 180ms ease-out, box-shadow 180ms ease-out;
+        }
+
+        @media (hover: hover) and (pointer: fine) {
+            .album-card:hover {
+                transform: translateY(-3px);
+                box-shadow: var(--shadow-hover);
+            }
         }
 
         .album-card a {
             text-decoration: none;
-            color: #111827;
+            color: var(--text);
             font-weight: bold;
             font-size: 18px;
         }
 
         .delete-btn {
-            background: #dc2626;
+            background: var(--danger);
             margin-top: 15px;
+        }
+
+        .delete-btn:hover {
+            background: var(--danger-hover);
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            body,
+            .album-card,
+            button,
+            .nav-links a,
+            .theme-toggle {
+                transition: none;
+            }
         }
     </style>
 </head>
@@ -104,6 +207,7 @@
         <a href="/gallery">Photos</a>
         <a href="/files-page">Files</a>
         <a href="/albums" class="active">Albums</a>
+        <button id="themeToggle" class="theme-toggle" type="button" onclick="toggleTheme()" aria-label="Toggle dark mode"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg></button>
     </div>
 </nav>
 
@@ -127,6 +231,36 @@
     </div>
     {% endfor %}
 </div>
+
+<script>
+    function toggleTheme() {
+        const root = document.documentElement;
+        const isDark = root.getAttribute("data-theme") === "dark";
+
+        if (isDark) {
+            root.removeAttribute("data-theme");
+            localStorage.setItem("theme", "light");
+        } else {
+            root.setAttribute("data-theme", "dark");
+            localStorage.setItem("theme", "dark");
+        }
+
+        updateThemeToggleLabel();
+    }
+
+    // Hand-drawn SVG icons - no emoji, no font/platform rendering differences.
+    const MOON_ICON = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>';
+    const SUN_ICON = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>';
+
+    function updateThemeToggleLabel() {
+        const btn = document.getElementById("themeToggle");
+        if (!btn) return;
+        const isDark = document.documentElement.getAttribute("data-theme") === "dark";
+        btn.innerHTML = isDark ? SUN_ICON : MOON_ICON;
+    }
+
+    updateThemeToggleLabel();
+</script>
 
 </body>
 </html>
