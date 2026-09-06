@@ -225,6 +225,8 @@
             width: 100%;
             height: auto;
             display: block;
+            -webkit-user-drag: none;
+            user-drag: none;
         }
 
         .file-card .file-icon {
@@ -542,7 +544,7 @@
                 card.className = "file-card";
 
                 card.innerHTML = IMAGE_EXTS.includes(ext)
-                    ? `<img src="${f.url}" loading="lazy">`
+                    ? `<img src="${f.url}" loading="lazy" draggable="false">`
                     : `<div class="file-icon"><span class="ext">.${ext}</span><span class="name">${f.filename}</span></div>`;
 
                 card.addEventListener("click", function () {
@@ -594,7 +596,7 @@
                 content.innerHTML = `<iframe src="${url}"></iframe>`;
             }
             else if (IMAGE_EXTS.includes(ext)) {
-                content.innerHTML = `<img src="${url}">`;
+                content.innerHTML = `<img src="${url}" draggable="false">`;
             }
             else {
                 content.innerHTML = `
@@ -680,26 +682,37 @@
             this.value = "";
         });
 
+        // isFileDrag() keeps dragging a thumbnail/preview around within the
+        // page (or dragging selected text) from being treated as a file
+        // drop - see index.html for the full explanation.
+        function isFileDrag(e) {
+            return !!(e.dataTransfer && Array.from(e.dataTransfer.types || []).includes("Files"));
+        }
+
         const dropOverlay = document.getElementById("dropOverlay");
         let dragDepth = 0;
 
         document.addEventListener("dragenter", function (e) {
+            if (!isFileDrag(e)) return;
             e.preventDefault();
             dragDepth++;
             dropOverlay.classList.add("show");
         });
 
         document.addEventListener("dragover", function (e) {
+            if (!isFileDrag(e)) return;
             e.preventDefault();
         });
 
         document.addEventListener("dragleave", function (e) {
+            if (!isFileDrag(e)) return;
             e.preventDefault();
             dragDepth = Math.max(0, dragDepth - 1);
             if (dragDepth === 0) dropOverlay.classList.remove("show");
         });
 
         document.addEventListener("drop", async function (e) {
+            if (!isFileDrag(e)) return;
             e.preventDefault();
             dragDepth = 0;
             dropOverlay.classList.remove("show");

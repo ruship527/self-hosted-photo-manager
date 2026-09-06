@@ -247,6 +247,8 @@
             height: auto;
             display: block;
             cursor: pointer;
+            -webkit-user-drag: none;
+            user-drag: none;
         }
 
         button {
@@ -366,6 +368,8 @@
             transform: scale(0.97);
             opacity: 0;
             transition: transform 220ms ease-out, opacity 220ms ease-out;
+            -webkit-user-drag: none;
+            user-drag: none;
         }
 
         .modal.show .lightbox-img {
@@ -537,7 +541,7 @@
             <button id="detailsDelete" class="lightbox-icon-btn lightbox-danger" aria-label="Delete"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg></button>
         </div>
 
-        <img id="detailsImage" class="lightbox-img">
+        <img id="detailsImage" class="lightbox-img" draggable="false">
 
         <div class="lightbox-caption">
             <strong id="detailsFilename"></strong>
@@ -599,7 +603,7 @@
 
         // Cards show only the image - filename, date, and the download/
         // delete actions live in the lightbox that opens on click.
-        card.innerHTML = `<img class="photo-img" src="${API_URL}${photo.thumbnail_url || photo.url}" loading="lazy">`;
+        card.innerHTML = `<img class="photo-img" src="${API_URL}${photo.thumbnail_url || photo.url}" loading="lazy" draggable="false">`;
 
         card.querySelector(".photo-img").addEventListener("click", function () {
             openPhotoDetails(index);
@@ -807,26 +811,44 @@
 
     // Drag-and-drop now works anywhere on the page (no dedicated dropzone
     // box) - the overlay is just the visual cue that a drop will upload.
+    //
+    // isFileDrag() guards all of this against non-upload drags - dragging a
+    // photo thumbnail (or the open lightbox image) within the page, or even
+    // just dragging selected text, both fire real dragenter/dragover/drop
+    // events on document. Thumbnails/lightbox now set draggable="false" so
+    // they shouldn't start a drag at all, but Firefox in particular has been
+    // known to populate dataTransfer.files with the image itself on an
+    // in-page image drag regardless - checking dataTransfer.types for
+    // "Files" up front is what actually stops that from reaching
+    // handleFiles() and re-uploading the photo you just meant to look at.
+    function isFileDrag(e) {
+        return !!(e.dataTransfer && Array.from(e.dataTransfer.types || []).includes("Files"));
+    }
+
     const dropOverlay = document.getElementById("dropOverlay");
     let dragDepth = 0;
 
     document.addEventListener("dragenter", function (e) {
+        if (!isFileDrag(e)) return;
         e.preventDefault();
         dragDepth++;
         dropOverlay.classList.add("show");
     });
 
     document.addEventListener("dragover", function (e) {
+        if (!isFileDrag(e)) return;
         e.preventDefault();
     });
 
     document.addEventListener("dragleave", function (e) {
+        if (!isFileDrag(e)) return;
         e.preventDefault();
         dragDepth = Math.max(0, dragDepth - 1);
         if (dragDepth === 0) dropOverlay.classList.remove("show");
     });
 
     document.addEventListener("drop", async function (e) {
+        if (!isFileDrag(e)) return;
         e.preventDefault();
         dragDepth = 0;
         dropOverlay.classList.remove("show");
