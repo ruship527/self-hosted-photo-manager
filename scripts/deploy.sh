@@ -14,12 +14,18 @@
 # Meant to run on a schedule via cron, e.g. every 5 minutes:
 #   */5 * * * * /home/rushi/Photoapp/scripts/deploy.sh >> /home/rushi/photoapp-logs/deploy.log 2>&1
 #
+# Operates on its own git worktree (REPO_DIR), separate from wherever
+# main is checked out interactively - a `git checkout`/`git reset --hard`
+# here must never collide with someone's in-progress, uncommitted edits
+# in a different checkout of the same repo. Set up once with:
+#   git worktree add /home/rushi/photoapp-deploy main
+#
 # Override via env vars if your setup differs: REPO_DIR, REPO, BRANCH
 # Requires: git, curl, jq, docker (with the compose plugin).
 
 set -euo pipefail
 
-REPO_DIR="${REPO_DIR:-/home/rushi/Photoapp}"
+REPO_DIR="${REPO_DIR:-/home/rushi/photoapp-deploy}"
 REPO="${REPO:-ruship527/self-hosted-photo-manager}"
 BRANCH="${BRANCH:-main}"
 LOCK_FILE="/tmp/photoapp-deploy.lock"
