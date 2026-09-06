@@ -16,24 +16,39 @@ def build_filename(original_filename):
     return unique_name + ext
 
 
-def get_photo_taken_date(image_path):
+def get_photo_taken_date(image_path, fallback):
+    """Read the photo's actual capture date from EXIF. `fallback` (the
+    upload timestamp, formatted the same way) is used whenever there's no
+    usable EXIF date - callers should pass the exact same value they're
+    about to store as the photo's upload_date, so the two never drift."""
     try:
         image = Image.open(image_path)
         exif_data = image.getexif()
 
-        if not exif_data:
-            return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
         for tag_id, value in exif_data.items():
             tag = TAGS.get(tag_id, tag_id)
 
-            if tag == "DateTimeOriginal":
-                return datetime.strptime(value, "%Y:%m:%d %H:%M:%S").strftime("%Y-%m-%d %H:%M:%S")
+            if tag != "DateTimeOriginal":
+                continue
 
-        return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            # Some cameras null-pad this field, or write an all-zero
+            # placeholder ("0000:00:00 00:00:00") when the date is unknown -
+            # neither is a real date, so fall through to the upload date.
+            value = str(value).strip().rstrip("\x00")
+
+            if not value or value.startswith("0000"):
+                break
+
+            try:
+                return datetime.strptime(value, "%Y:%m:%d %H:%M:%S").strftime("%Y-%m-%d %H:%M:%S")
+            except ValueError:
+                logger.warning("Unparseable EXIF DateTimeOriginal %r for %s", value, image_path)
+                break
 
     except Exception:
-        return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        logger.exception("Failed to read EXIF date for %s", image_path)
+
+    return fallback
 
 
 def get_file_hash(file_path):
