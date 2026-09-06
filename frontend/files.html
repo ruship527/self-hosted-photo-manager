@@ -671,7 +671,12 @@
         const fileInput = document.getElementById("fileInput");
 
         fileInput.addEventListener("change", function () {
-            handleFiles(this.files);
+            // Bug fix: this.files is a *live* FileList tied to the input -
+            // resetting this.value below clears it immediately, and since
+            // handleFiles is async (fetch calls yield between files), every
+            // file after the first turned into undefined mid-loop on a
+            // multi-file selection. Array.from() takes a static snapshot first.
+            handleFiles(Array.from(this.files));
             this.value = "";
         });
 
