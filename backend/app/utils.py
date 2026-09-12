@@ -174,7 +174,10 @@ def make_thumbnail(source_path: str, dest_path: str, size=THUMBNAIL_SIZE) -> Non
     photos come out right-side-up, then saves in the source's own format."""
     with Image.open(source_path) as img:
         fmt = img.format
-        img = ImageOps.exif_transpose(img)
+        # exif_transpose only returns None when called with in_place=True
+        # (not the case here) - the `or img` fallback just makes that
+        # explicit for the type checker instead of relying on it silently.
+        img = ImageOps.exif_transpose(img) or img
         img.thumbnail(size)
 
         tmp_path = dest_path + ".tmp"
