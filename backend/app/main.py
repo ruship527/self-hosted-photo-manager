@@ -2,8 +2,9 @@ import logging
 import os
 
 from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi.exception_handlers import http_exception_handler
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, RedirectResponse
 
 from app.database import engine, Base
 import app.models
@@ -61,6 +62,19 @@ async def add_nosniff_header(request: Request, call_next):
     response = await call_next(request)
     response.headers["X-Content-Type-Options"] = "nosniff"
     return response
+
+
+@app.exception_handler(HTTPException)
+async def redirect_expired_session_to_login(request: Request, exc: HTTPException):
+    """authenticate() (app/routes/auth.py) raises a bare 401 when a session
+    is missing/expired, which FastAPI would otherwise render as a raw JSON
+    error page. That's fine for the frontend's own fetch() calls (Accept:
+    */*), which can handle a 401 themselves - but a real page load (Accept:
+    text/html, e.g. a reload or bookmark after the session times out) should
+    land back on the login form instead of that JSON page."""
+    if exc.status_code == 401 and "text/html" in request.headers.get("accept", ""):
+        return RedirectResponse(url="/login", status_code=303)
+    return await http_exception_handler(request, exc)
 
 
 @app.get("/uploads/thumbnails/{filename}")
