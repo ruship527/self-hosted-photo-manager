@@ -134,7 +134,7 @@ def is_safe_to_render_inline(filename: str) -> bool:
     return os.path.splitext(filename)[1].lower() in SAFE_TO_RENDER_INLINE_EXTENSIONS
 
 
-def sanitize_filename(filename: str) -> str:
+def sanitize_filename(filename: str | None) -> str:
     """Strip any path component / null bytes so a user-supplied filename
     can never escape the folder it's joined into."""
     name = os.path.basename((filename or "").replace("\x00", ""))

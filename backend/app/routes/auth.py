@@ -60,7 +60,8 @@ def authenticate(request: Request):
     session = active_sessions.get(session_token) if session_token else None
 
     if not session or session["expires"] < time.time():
-        active_sessions.pop(session_token, None)
+        if session_token:
+            active_sessions.pop(session_token, None)
         raise HTTPException(status_code=401, detail="Not logged in")
 
     return session["user"]
@@ -136,7 +137,8 @@ def gallery(user: str = Depends(authenticate)):
 @router.post("/logout")
 def logout(request: Request):
     token = request.cookies.get("session_token")
-    active_sessions.pop(token, None)
+    if token:
+        active_sessions.pop(token, None)
     response = RedirectResponse(url="/login", status_code=303)
     response.delete_cookie("session_token")
     return response

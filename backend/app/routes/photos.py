@@ -49,7 +49,11 @@ async def upload_photo(
     else:
         folder = FILE_FOLDER
 
-    safe_name = sanitize_filename(file.filename)
+    try:
+        safe_name = sanitize_filename(file.filename)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid filename")
+
     temp_filename = f"temp_{uuid.uuid4()}_{safe_name}"
     temp_path = os.path.join(folder, temp_filename)
 
