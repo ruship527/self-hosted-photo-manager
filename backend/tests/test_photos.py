@@ -107,3 +107,19 @@ def test_photos_pagination_is_opt_in(logged_in_client, monkeypatch):
 
     resp = logged_in_client.get("/photos", params={"limit": 1})
     assert len(resp.json()) == 1
+
+
+def test_download_zip_rejects_an_oversized_batch(logged_in_client):
+    import app.routes.photos as photos_module
+
+    filenames = [f"photo{i}.jpg" for i in range(photos_module.MAX_ZIP_BATCH + 1)]
+    resp = logged_in_client.post("/photos/download-zip", json=filenames)
+    assert resp.status_code == 413
+
+
+def test_download_zip_allows_a_batch_at_the_limit(logged_in_client):
+    import app.routes.photos as photos_module
+
+    filenames = [f"photo{i}.jpg" for i in range(photos_module.MAX_ZIP_BATCH)]
+    resp = logged_in_client.post("/photos/download-zip", json=filenames)
+    assert resp.status_code == 200

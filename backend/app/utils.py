@@ -110,6 +110,21 @@ MAX_UPLOAD_BYTES = MAX_UPLOAD_MB * 1024 * 1024
 _UPLOAD_CHUNK_SIZE = 1024 * 1024  # 1 MB
 
 
+# The generic "files" upload has no content-type check at all, so anything
+# can land in FILE_FOLDER - including an .html or .svg whose declared
+# content-type (guessed from its extension when it's served back) a browser
+# will happily render as active content in this app's own origin. Those
+# extensions are forced to download instead of render inline; everything
+# else keeps serving as before.
+DANGEROUS_INLINE_EXTENSIONS = {
+    ".html", ".htm", ".xhtml", ".shtml", ".mhtml", ".svg", ".xml", ".js", ".mjs",
+}
+
+
+def is_dangerous_to_render_inline(filename: str) -> bool:
+    return os.path.splitext(filename)[1].lower() in DANGEROUS_INLINE_EXTENSIONS
+
+
 def sanitize_filename(filename: str) -> str:
     """Strip any path component / null bytes so a user-supplied filename
     can never escape the folder it's joined into."""

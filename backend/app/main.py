@@ -10,7 +10,14 @@ import app.models
 
 from app.routes import auth, photos, files, stats, albums
 from app.routes.auth import authenticate
-from app.utils import UPLOAD_FOLDER, PHOTO_FOLDER, THUMBNAIL_FOLDER, make_thumbnail, safe_join
+from app.utils import (
+    UPLOAD_FOLDER,
+    PHOTO_FOLDER,
+    THUMBNAIL_FOLDER,
+    is_dangerous_to_render_inline,
+    make_thumbnail,
+    safe_join,
+)
 
 logging.basicConfig(
     level=os.environ.get("LOG_LEVEL", "INFO"),
@@ -20,6 +27,14 @@ logger = logging.getLogger("photoapp")
 
 app = FastAPI()
 
+# Convenient for a fresh dev/test DB (create_all only ever adds *missing*
+# tables, so it's a no-op once they exist) but it's not a substitute for
+# Alembic - it will never apply a change to an existing column. Schema
+# changes from here on go through an Alembic migration in alembic/versions/
+# ("alembic upgrade head"). An existing database that already has these
+# tables (every deploy up to this point) should run "alembic stamp head"
+# once instead, to mark the baseline as already applied without re-running
+# its DDL.
 Base.metadata.create_all(bind=engine)
 
 ALLOWED_ORIGINS = [
@@ -70,6 +85,16 @@ def get_upload(subfolder: str, filename: str, user: str = Depends(authenticate))
 
     if not os.path.isfile(file_path):
         raise HTTPException(status_code=404, detail="Not found")
+
+    # The "files" upload has no content-type check, so an .html/.svg could
+    # otherwise be served with a content-type that makes the browser render
+    # it as active content in this app's own (authenticated) origin.
+    if subfolder == "files" and is_dangerous_to_render_inline(file_path):
+        return FileResponse(
+            file_path,
+            media_type="application/octet-stream",
+            filename=os.path.basename(file_path),
+        )
 
     return FileResponse(file_path)
 
