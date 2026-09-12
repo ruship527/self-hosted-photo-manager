@@ -187,6 +187,13 @@ def get_photos(
 
 MAX_ZIP_BATCH = 500
 
+# Capping the number of files isn't enough on its own - the zip is still
+# built entirely in memory, so e.g. 500 files (the count limit) at
+# MAX_UPLOAD_MB each could still ask for ~250GB of RAM. Resolve every path
+# and total up real file sizes *before* writing anything into the buffer,
+# so an oversized request is rejected up front instead of partway through.
+MAX_ZIP_TOTAL_BYTES = 2 * 1024 * 1024 * 1024  # 2GB
+
 
 @router.post("/photos/download-zip")
 async def download_zip(filenames: list[str], user: str = Depends(authenticate)):
@@ -196,17 +203,30 @@ async def download_zip(filenames: list[str], user: str = Depends(authenticate)):
             detail=f"Too many files requested at once (max {MAX_ZIP_BATCH})",
         )
 
+    file_paths = []
+    total_bytes = 0
+
+    for name in filenames:
+        try:
+            file_path = safe_join(PHOTO_FOLDER, name)
+        except ValueError:
+            continue
+
+        if os.path.isfile(file_path):
+            total_bytes += os.path.getsize(file_path)
+            file_paths.append(file_path)
+
+    if total_bytes > MAX_ZIP_TOTAL_BYTES:
+        raise HTTPException(
+            status_code=413,
+            detail=f"Requested files are too large to zip at once (max {MAX_ZIP_TOTAL_BYTES} bytes)",
+        )
+
     zip_buffer = io.BytesIO()
 
     with zipfile.ZipFile(zip_buffer, "w") as zip_file:
-        for name in filenames:
-            try:
-                file_path = safe_join(PHOTO_FOLDER, name)
-            except ValueError:
-                continue
-
-            if os.path.isfile(file_path):
-                zip_file.write(file_path, arcname=os.path.basename(file_path))
+        for file_path in file_paths:
+            zip_file.write(file_path, arcname=os.path.basename(file_path))
 
     zip_buffer.seek(0)
 

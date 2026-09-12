@@ -123,3 +123,23 @@ def test_download_zip_allows_a_batch_at_the_limit(logged_in_client):
     filenames = [f"photo{i}.jpg" for i in range(photos_module.MAX_ZIP_BATCH)]
     resp = logged_in_client.post("/photos/download-zip", json=filenames)
     assert resp.status_code == 200
+
+
+def test_download_zip_rejects_when_total_size_exceeds_cap(logged_in_client, monkeypatch):
+    """The file-count cap alone isn't enough - a handful of large files
+    within that count could still force the server to buffer an enormous
+    zip in memory. Total real file size is checked before anything is
+    written into the zip buffer."""
+    import app.routes.photos as photos_module
+
+    monkeypatch.setattr(photos_module, "generate_ai_tags", lambda path: "")
+    resp = logged_in_client.post(
+        "/photos/upload",
+        files={"file": ("big.png", _make_test_image_bytes(), "image/png")},
+    )
+    filename = resp.json()["filename"]
+
+    monkeypatch.setattr(photos_module, "MAX_ZIP_TOTAL_BYTES", 1)
+
+    resp = logged_in_client.post("/photos/download-zip", json=[filename])
+    assert resp.status_code == 413

@@ -113,16 +113,25 @@ _UPLOAD_CHUNK_SIZE = 1024 * 1024  # 1 MB
 # The generic "files" upload has no content-type check at all, so anything
 # can land in FILE_FOLDER - including an .html or .svg whose declared
 # content-type (guessed from its extension when it's served back) a browser
-# will happily render as active content in this app's own origin. Those
-# extensions are forced to download instead of render inline; everything
-# else keeps serving as before.
-DANGEROUS_INLINE_EXTENSIONS = {
-    ".html", ".htm", ".xhtml", ".shtml", ".mhtml", ".svg", ".xml", ".js", ".mjs",
+# will happily render as active content in this app's own origin. This is
+# deliberately an *allowlist* of extensions known not to execute as active
+# content when rendered inline, not a denylist of dangerous ones - a
+# denylist only ever covers extensions someone thought to add (a file with
+# no extension at all, or an obscure one like .svgz/.xht, would silently
+# fall through it). Anything not on this list is forced to download
+# instead of render inline.
+SAFE_TO_RENDER_INLINE_EXTENSIONS = {
+    # images
+    ".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".ico", ".tiff", ".tif",
+    # documents/text that browsers display without executing
+    ".pdf", ".txt", ".csv", ".md",
+    # audio/video
+    ".mp3", ".wav", ".ogg", ".mp4", ".webm", ".mov", ".m4a",
 }
 
 
-def is_dangerous_to_render_inline(filename: str) -> bool:
-    return os.path.splitext(filename)[1].lower() in DANGEROUS_INLINE_EXTENSIONS
+def is_safe_to_render_inline(filename: str) -> bool:
+    return os.path.splitext(filename)[1].lower() in SAFE_TO_RENDER_INLINE_EXTENSIONS
 
 
 def sanitize_filename(filename: str) -> str:
