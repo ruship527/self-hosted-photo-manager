@@ -185,8 +185,17 @@ def get_photos(
         for p in photos
     ]
 
+MAX_ZIP_BATCH = 500
+
+
 @router.post("/photos/download-zip")
 async def download_zip(filenames: list[str], user: str = Depends(authenticate)):
+    if len(filenames) > MAX_ZIP_BATCH:
+        raise HTTPException(
+            status_code=413,
+            detail=f"Too many files requested at once (max {MAX_ZIP_BATCH})",
+        )
+
     zip_buffer = io.BytesIO()
 
     with zipfile.ZipFile(zip_buffer, "w") as zip_file:

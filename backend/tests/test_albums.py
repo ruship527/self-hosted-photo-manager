@@ -39,6 +39,26 @@ def test_create_album_rejects_blank_name(logged_in_client):
     assert resp.headers["location"] == "/albums?error=Album+name+can%27t+be+empty"
 
 
+def test_create_album_with_percent_in_name_does_not_false_positive_duplicate(logged_in_client):
+    """Album name uniqueness is checked with ilike(), which treats a bare
+    "%"/"_" in the value as a SQL wildcard. Without escaping, an album
+    named "50%" would incorrectly report a duplicate against an unrelated
+    "50X" album, and vice versa."""
+    other_name = _unique_name("50X")
+    _create_album(logged_in_client, other_name)
+
+    percent_name = other_name.replace("X", "%", 1)
+    resp = logged_in_client.post(
+        "/albums/create", data={"name": percent_name}, follow_redirects=False
+    )
+    assert resp.status_code == 303
+    assert resp.headers["location"] == "/albums"
+
+    albums = logged_in_client.get("/albums/data").json()
+    assert any(a["name"] == percent_name for a in albums)
+    assert any(a["name"] == other_name for a in albums)
+
+
 def test_create_album_rejects_case_insensitive_duplicate(logged_in_client):
     name = _unique_name("Trip")
     _create_album(logged_in_client, name)

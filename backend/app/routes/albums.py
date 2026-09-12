@@ -16,6 +16,15 @@ from fastapi import Request
 
 router = APIRouter(tags=["Albums"])
 
+
+def _exact_name_ilike(column, name: str):
+    """Case-insensitive *exact* match on `name` - ilike() treats a bare "%"
+    or "_" in the value as a wildcard, so without escaping, creating an
+    album named e.g. "50%" would report a false duplicate against any
+    existing "50X" album (and vice versa)."""
+    escaped = name.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+    return column.ilike(escaped, escape="\\")
+
 templates = Jinja2Templates(
     directory=os.path.join(BASE_DIR, "frontend")
 )
@@ -75,7 +84,7 @@ def create_album(name: str = Form(...), db: Session = Depends(get_db), user: str
     if not name:
         return RedirectResponse(url="/albums?error=Album+name+can%27t+be+empty", status_code=303)
 
-    existing = db.query(Album).filter(Album.name.ilike(name)).first()
+    existing = db.query(Album).filter(_exact_name_ilike(Album.name, name)).first()
     if existing:
         return RedirectResponse(
             url=f"/albums?error={quote(f'An album named {name!r} already exists')}",
@@ -108,7 +117,7 @@ def rename_album(
     if not name:
         return RedirectResponse(url=f"/albums/{album_id}?error=Album+name+can%27t+be+empty", status_code=303)
 
-    existing = db.query(Album).filter(Album.name.ilike(name), Album.id != album_id).first()
+    existing = db.query(Album).filter(_exact_name_ilike(Album.name, name), Album.id != album_id).first()
     if existing:
         return RedirectResponse(
             url=f"/albums/{album_id}?error={quote(f'An album named {name!r} already exists')}",

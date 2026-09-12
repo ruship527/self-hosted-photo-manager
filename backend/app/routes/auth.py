@@ -29,6 +29,31 @@ LOGIN_LOCKOUT_SECONDS = int(os.environ.get("LOGIN_LOCKOUT_SECONDS", "300"))
 active_sessions: dict[str, dict] = {}
 failed_login_attempts: dict[str, list] = {}
 
+# Both dicts above only ever grow from login traffic and are only ever
+# cleaned up lazily, for the one exact token/key being looked up right now
+# - a session or IP that's never touched again just sits in memory forever
+# on a long-running server. Sweep the rest out periodically, piggybacked on
+# real login attempts rather than a background thread.
+_SESSION_PRUNE_INTERVAL_SECONDS = 300
+_last_session_prune = 0.0
+
+
+def _prune_stale_auth_state():
+    global _last_session_prune
+
+    now = time.time()
+    if now - _last_session_prune < _SESSION_PRUNE_INTERVAL_SECONDS:
+        return
+    _last_session_prune = now
+
+    for token, session in list(active_sessions.items()):
+        if session["expires"] < now:
+            active_sessions.pop(token, None)
+
+    for key, attempts in list(failed_login_attempts.items()):
+        if not any(now - t < LOGIN_LOCKOUT_SECONDS for t in attempts):
+            failed_login_attempts.pop(key, None)
+
 
 def authenticate(request: Request):
     session_token = request.cookies.get("session_token")
@@ -46,6 +71,8 @@ def _client_key(request: Request) -> str:
 
 
 def _check_login_rate_limit(key: str):
+    _prune_stale_auth_state()
+
     now = time.time()
     attempts = [t for t in failed_login_attempts.get(key, []) if now - t < LOGIN_LOCKOUT_SECONDS]
     failed_login_attempts[key] = attempts
