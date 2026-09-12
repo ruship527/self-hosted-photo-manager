@@ -1,7 +1,7 @@
 import logging
 import os
 
-from fastapi import Depends, FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
@@ -14,7 +14,7 @@ from app.utils import (
     UPLOAD_FOLDER,
     PHOTO_FOLDER,
     THUMBNAIL_FOLDER,
-    is_dangerous_to_render_inline,
+    is_safe_to_render_inline,
     make_thumbnail,
     safe_join,
 )
@@ -52,6 +52,17 @@ app.add_middleware(
 )
 
 
+@app.middleware("http")
+async def add_nosniff_header(request: Request, call_next):
+    """Defense-in-depth alongside is_safe_to_render_inline(): even if a
+    served file's content-type is ever wrong (a future bug, or a client
+    that mis-detects/sniffs regardless), this stops a browser from
+    reinterpreting a declared type into something more dangerous."""
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    return response
+
+
 @app.get("/uploads/thumbnails/{filename}")
 def get_thumbnail(filename: str, user: str = Depends(authenticate)):
     try:
@@ -86,10 +97,12 @@ def get_upload(subfolder: str, filename: str, user: str = Depends(authenticate))
     if not os.path.isfile(file_path):
         raise HTTPException(status_code=404, detail="Not found")
 
-    # The "files" upload has no content-type check, so an .html/.svg could
-    # otherwise be served with a content-type that makes the browser render
-    # it as active content in this app's own (authenticated) origin.
-    if subfolder == "files" and is_dangerous_to_render_inline(file_path):
+    # The "files" upload has no content-type check, so anything could be
+    # sitting in FILE_FOLDER - only extensions known not to execute as
+    # active content when rendered inline are served as-is; everything
+    # else (including an unrecognized or missing extension) downloads
+    # instead of rendering in this app's own (authenticated) origin.
+    if subfolder == "files" and not is_safe_to_render_inline(file_path):
         return FileResponse(
             file_path,
             media_type="application/octet-stream",

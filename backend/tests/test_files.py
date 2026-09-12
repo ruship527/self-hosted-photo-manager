@@ -62,6 +62,30 @@ def test_uploaded_svg_is_forced_to_download_not_rendered(logged_in_client):
     assert "attachment" in resp.headers["content-disposition"]
 
 
+def test_uploaded_file_with_an_unrecognized_extension_is_forced_to_download():
+    """is_safe_to_render_inline() is deliberately an allowlist, not a
+    denylist - an extension nobody thought to allow (not just ones known
+    to be dangerous) must still default to downloading, not rendering."""
+    from app.utils import is_safe_to_render_inline
+    assert is_safe_to_render_inline("mystery.xht") is False
+    assert is_safe_to_render_inline("mystery.svgz") is False
+
+
+def test_uploaded_file_with_no_extension_is_forced_to_download(logged_in_client):
+    payload = b"<script>alert(document.cookie)</script>"
+    saved_name = _upload_file(logged_in_client, "mystery", content=payload, content_type="application/octet-stream")
+
+    resp = logged_in_client.get(f"/uploads/files/{saved_name}")
+    assert resp.status_code == 200
+    assert resp.headers["content-type"].startswith("application/octet-stream")
+    assert "attachment" in resp.headers["content-disposition"]
+
+
+def test_responses_carry_nosniff_header(logged_in_client):
+    resp = logged_in_client.get("/files")
+    assert resp.headers.get("x-content-type-options") == "nosniff"
+
+
 def test_upload_avoids_clobbering_a_same_named_file(logged_in_client):
     name1 = _upload_file(logged_in_client, "dup.txt", content=b"first")
     name2 = _upload_file(logged_in_client, "dup.txt", content=b"second")
