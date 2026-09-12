@@ -26,7 +26,7 @@
 set -euo pipefail
 
 REPO_DIR="${REPO_DIR:-/home/rushi/photoapp-deploy}"
-REPO="${REPO:-ruship527/self-hosted-photo-manager}"
+REPO="${REPO:-ruship527/Homelab-Drive}"
 BRANCH="${BRANCH:-main}"
 LOCK_FILE="/tmp/photoapp-deploy.lock"
 
@@ -54,7 +54,7 @@ log "New commit on $BRANCH ($remote_commit), checking CI before deploying..."
 
 # Only deploy once GitHub Actions CI has finished and passed for the new
 # commit - this is what actually makes it safe to auto-deploy unattended.
-check_runs=$(curl -sf "https://api.github.com/repos/$REPO/commits/$remote_commit/check-runs") || {
+check_runs=$(curl -sfL "https://api.github.com/repos/$REPO/commits/$remote_commit/check-runs") || {
     log "Failed to query CI status from GitHub, will retry next run"
     exit 0
 }
