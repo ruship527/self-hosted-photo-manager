@@ -18,10 +18,20 @@ if config.config_file_name is not None:
 # for 'autogenerate' support
 # from myapp import mymodel
 # target_metadata = mymodel.Base.metadata
-from app.database import Base
+from app.database import Base, DATABASE_URL
 from app.models import Photo
 
 target_metadata = Base.metadata
+
+# alembic.ini's sqlalchemy.url is a fixed relative path ("./photos.db") that
+# only happens to be right if alembic is run from the exact same working
+# directory as the app, with the exact same DATA_DIR - in the deployed
+# container the app's real DB lives wherever DATA_DIR points (a mounted
+# volume, not "."), so a bare relative path would silently create/target a
+# different, non-persistent file instead. Always defer to the same
+# DATABASE_URL app.database itself uses, so alembic and the app can never
+# disagree about which database they mean.
+config.set_main_option("sqlalchemy.url", DATABASE_URL)
 
 # other values from the config, defined by the needs of env.py,
 # can be acquired:
